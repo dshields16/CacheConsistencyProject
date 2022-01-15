@@ -7,36 +7,26 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.time.LocalTime;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 
 public class PeerToPeerTesting {
 
     private static final int BASE_PORT = 6000;
+    private static int peerId = -1, noPeers = 0;
 
     private static ServerSocket serverSocket;
 
-    private static Map<Integer, PeerConnection> peerConnectionMap = new HashMap<>();
+    //private static Map<Integer, PeerConnection> peerConnectionMap = new HashMap<>();
+    private static List<PeerConnection> peerConnectionList = new ArrayList<>();
 
-    public static void main(String[] args) throws IOException {
-
-
-        /*
-        //generate peer services
-        List<PeerService> peerServices = PeerSetup(2);
-
-        //setup a graph of connections between peers
-        PeerNodeGraph connectionGraph = new PeerNodeGraph(peerServices);
-
-        //example of obtaining latency between peers
-        int latency = PeerNodeGraph.GetLatency(peerServices.get(0), peerServices.get(1));
-        System.out.printf("Latency: %dms%n", latency);
-        */
+    public static void main(String[] args) throws IOException, InterruptedException {
 
 
-        int peerId = -1, noPeers = 0;
+
         try {
             peerId = Integer.parseInt(args[0]);
             noPeers = Integer.parseInt(args[1]);
@@ -46,63 +36,19 @@ public class PeerToPeerTesting {
         int portNumber = BASE_PORT + peerId;
         System.out.printf("Peer Service %d running on port %d%n", peerId, portNumber);
 
-        PeerService peerObj = new PeerService((short) portNumber);
+        PeerService peerObj = new PeerService((short) peerId);
 
         //set up server
-
-/*
-        if(peerId == 0) {
-            serverSocket = new ServerSocket(portNumber);
-            clientSocket = serverSocket.accept();
-            out = new PrintWriter(clientSocket.getOutputStream(), true);
-            in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-
-            String greeting = in.readLine();
-            System.out.println("hello client");
-        } else {
-            clientSocket = new Socket("localhost", BASE_PORT);
-            out = new PrintWriter(clientSocket.getOutputStream(), true);
-            in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-
-            out.println("Test!");
-        }
-*/
-
         serverSocket = new ServerSocket(portNumber);
-
-/*
-        if(peerId == 0) {
-
-            //client socket created when a client connects
-            clientSocket = serverSocket.accept();
-            out = new PrintWriter(clientSocket.getOutputStream(), true);
-            in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-
-            System.out.printf("Establishing connection with peer %d%n", 1);
-            String greeting = in.readLine();
-            System.out.printf("Received message: %s%n", greeting);
-
-            //PeerConnection newPeer = new PeerConnection();
-            //peerConnectionMap.put(1, newPeer);
-            //newPeer.StartConnection(BASE_PORT + 1);
-        } else {
-
-            System.out.printf("Establishing connection with peer %d%n", 0);
-            PeerConnection newPeer = new PeerConnection(BASE_PORT + 0);
-            //peerConnectionMap.put(0, newPeer);
-            newPeer.start();
-            //newPeer.StartConnection(BASE_PORT + 0);
-            //newPeer.SendMessage(String.format("Hello peer %d from peer %d", 0, peerId));
-        }
-*/
-
 
         //send a message to each preceding peer
         for(int i = 0; i < peerId; i++) {
 
             System.out.printf("Establishing connection with peer %d%n", i);
-            PeerConnection newPeer = new PeerConnection(BASE_PORT + i);
-            peerConnectionMap.put(0, newPeer);
+            PeerConnection newPeer = new PeerConnection(BASE_PORT + i, peerObj);
+            newPeer.SetLatency(GenerateLatencyValue(i));
+
+            peerConnectionList.add(newPeer);
             newPeer.start();
         }
 
@@ -111,22 +57,107 @@ public class PeerToPeerTesting {
         for(int i = peerId + 1; i < noPeers; i++) {
 
             //client socket created when a client connects
-            PeerConnection newPeer = new PeerConnection(serverSocket.accept());
-            peerConnectionMap.put(1, newPeer);
+            PeerConnection newPeer = new PeerConnection(serverSocket.accept(), peerObj);
+            newPeer.SetLatency(GenerateLatencyValue(i));
+            peerConnectionList.add(newPeer);
             newPeer.start();
         }
 
+        //sort list of connections by latency to make sending by latency easier
+        peerConnectionList.sort(Comparator.comparing(PeerConnection::GetLatency));
+
+
+        //if(peerId == 0) {
+
+            Thread thread = new Thread(() -> {
+
+                for(int i = 0; i < 2; i++) {
+                    SendPacketToAllPeers(peerObj);
+                    try { Thread.sleep(200); }
+                    catch (InterruptedException e) { e.printStackTrace(); }
+                }
+
+            });
+            thread.start();
+
+        //}
+
+        //wait for all connections to end
+        for (PeerConnection peer:peerConnectionList) {
+            peer.join();
+        }
+
+        peerObj.OutputStoredData();
 
 
         StopServer();
 
     }
 
-    private PeerConnection GetPeerConnection(int peerId){
-        return peerConnectionMap.get(peerId);
+    private static void SendPacketToAllPeers(PeerService peerObj) {
+
+        System.out.printf("Sending packet at %s%n", LocalTime.now());
+
+        //make a new thread to send packet
+        Thread thread = new Thread(() -> {
+
+            //keep a count of current latency
+            int currentLatencyValue = 0;
+
+            //generate packet
+            short[] packetData = peerObj.GenerateUpdatePacket();
+
+            byte[] packetByteData = ConvertShortArrayToByte(packetData);
+
+            System.out.println("Sent packet: ");
+            for(int i = 0; i < 16; i++){
+                System.out.printf("%d, ", packetData[i]);
+            }
+            System.out.println();
+
+            //send to all peers
+            for (PeerConnection peer : peerConnectionList) {
+
+                //get the difference in latency and sleep for that duration
+                int peerLatency = peer.GetLatency();
+                int addedLatency = peerLatency - currentLatencyValue;
+
+                if(addedLatency > 0) {
+                    try { Thread.sleep(addedLatency); }
+                    catch (InterruptedException e) { e.printStackTrace(); }
+
+                    currentLatencyValue += addedLatency;
+                }
+
+                try {
+                    peer.SendMessage(packetByteData);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+        });
+
+        thread.start();
     }
 
     private static void StopServer() throws IOException {
         serverSocket.close();
+    }
+
+    private static byte[] ConvertShortArrayToByte(short[] shortArray) {
+
+        ByteBuffer buffer = ByteBuffer.allocate(2*shortArray.length);
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
+        buffer.asShortBuffer().put(shortArray);
+        byte[] bytes = buffer.array();
+        return bytes;
+    }
+
+    private static int GenerateLatencyValue(int otherPeerId){
+
+        //peer 0 and peer 1 have a (base + 5)ms
+
+        return 5 * Math.abs(peerId - otherPeerId);
     }
 }

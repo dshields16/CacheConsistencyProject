@@ -11,16 +11,16 @@ public class PeerNodeGraph {
     //each index represents a source peer, list of destinations for each source
     private static List<PeerNodeEdge> [] adjacencyMatrix;
 
-    public PeerNodeGraph(List<PeerConnection> peers) {
+    public PeerNodeGraph(int numPeers) {
 
-        numPeers = peers.size();
+        this.numPeers = numPeers;
         adjacencyMatrix = new ArrayList[numPeers];
 
         for(int i = 0; i < numPeers; i++) {
             adjacencyMatrix[i] = new ArrayList<>();
         }
 
-        GenerateFullGraph(peers, 33);
+        //GenerateFullGraph(peers, 33);
     }
 
     private void GenerateFullGraph(List<PeerConnection> peers, int latency) {

@@ -87,7 +87,7 @@ public class PeerService
 
     //receive update packet
     public void ReceivePacket(short[] packetData) {
-        //System.out.printf("Peer %d receiving data of length %d%n", peerId, packetData.length);
+        System.out.printf("Peer %d receiving data of length %d%n", peerId, packetData.length);
         int length = packetData.length;
         if(length % 4 != 0){ return; }
 
