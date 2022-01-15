@@ -66,6 +66,7 @@ public class PeerToPeerTesting {
         //sort list of connections by latency to make sending by latency easier
         peerConnectionList.sort(Comparator.comparing(PeerConnection::GetLatency));
 
+        
 
         //if(peerId == 0) {
 
