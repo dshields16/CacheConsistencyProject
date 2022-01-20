@@ -66,9 +66,8 @@ public class PeerConnection extends Thread{
         while(true) {
 
             try {
+                //wait to receive message
                 in.read(bytes);
-
-                System.out.printf("Received packet at %s%n", LocalTime.now());
 
                 //a blank response is sent from recipient, ignore if so
                 if(CheckMessageBlank(bytes)){
@@ -77,8 +76,11 @@ public class PeerConnection extends Thread{
                     continue;
                 }
 
+                System.out.printf("Received packet at %s%n", LocalTime.now());
+
                 currentMessages++;
 
+                //convert to short array
                 short[] sendPacket = new short[bytes.length / 2];
                 ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(sendPacket);
 
@@ -88,6 +90,7 @@ public class PeerConnection extends Thread{
                 }
                 System.out.println();
 
+                //logic for received data
                 peerService.ReceivePacket(sendPacket);
 
                 if(currentMessages >= messagesToReceive) {

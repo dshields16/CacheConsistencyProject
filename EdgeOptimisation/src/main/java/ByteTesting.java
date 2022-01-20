@@ -7,6 +7,7 @@ public class ByteTesting {
 
     public static void main(String[] args) {
 
+        /*
         PeerService peerService = new PeerService((short) 0);
         short[] packetData = peerService.GenerateUpdatePacket();
 
@@ -18,5 +19,8 @@ public class ByteTesting {
 
         short[] sendPacket = new short[packetData.length];
         ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(sendPacket);
+
+         */
+
     }
 }
