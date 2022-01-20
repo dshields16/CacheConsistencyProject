@@ -19,8 +19,6 @@ public class PeerService
 
     public PeerService(short peerId) {
         this.peerId = peerId;
-
-        //System.out.printf("Staring with %d peers%n", peersList.size());
     }
 
     //add a new unit and return packet string
@@ -48,12 +46,21 @@ public class PeerService
     4:  health
 
      */
-    public short[] GenerateUpdatePacket() {
+    public short[] GenerateUpdatePacket(short sequenceNo) {
 
-        short packetData[] = new short[MAX_PACKET_SIZE];
 
+        short packetData[];
         int updatesToSend = 4, currentPacketSize = 0;
         short[] newData;
+
+        if(sequenceNo != -1) {
+            packetData = new short[MAX_PACKET_SIZE + 1];
+            packetData[0] = sequenceNo;
+            currentPacketSize = 1;
+        }
+        else {
+            packetData = new short[MAX_PACKET_SIZE];
+        }
 
 
         for (int i = 0; i < updatesToSend; i++){
@@ -64,7 +71,7 @@ public class PeerService
                 newData = new short[]{ peerId, currentUnit, currentVar, currentValue};
 
                 //modify stored data to reflect this
-                if(!CompleteParsedCommand(peerId, currentUnit, currentVar, currentValue))
+                if(!CompleteParsedCommand(peerId, currentUnit, currentVar, currentValue, sequenceNo))
                     continue;
 
                 //increment values
@@ -89,9 +96,16 @@ public class PeerService
     public void ReceivePacket(short[] packetData) {
         System.out.printf("Peer %d receiving data of length %d%n", peerId, packetData.length);
         int length = packetData.length;
-        if(length % 4 != 0){ return; }
+        int startValue = 0;
+        short sequenceNo = -1;
+        if(length % 4 != 0) {
+            sequenceNo = packetData[0];
+            startValue = 1;
+        }
 
-        for(int i = 0; i < length; i += 4){
+
+
+        for(int i = startValue; i < length; i += 4){
             short ownerId = packetData[i];
             short unitId = packetData[i+1];
             short varToUpdate = packetData[i+2];
@@ -99,19 +113,21 @@ public class PeerService
 
             //System.out.printf("Peer %d received value %d, %d, %d, %d%n", peerId, ownerId, unitId, varToUpdate, newValue);
 
-            CompleteParsedCommand(ownerId, unitId, varToUpdate, newValue);
+            CompleteParsedCommand(ownerId, unitId, varToUpdate, newValue, sequenceNo);
         }
 
 
     }
 
     //Use parsed data to complete the sent command i.e. modify some stored data
-    boolean CompleteParsedCommand(short peer, short unitId, short var, short value) {
+    boolean CompleteParsedCommand(short peer, short unitId, short var, short value, short sequenceNumber) {
 
         if(var == -1) {
             unitsList.add(new Unit(peer, unitId));
             return true;
         }
+
+        //check sequence value and return if stored value is higher ------------
 
         Unit updatedUnit = unitsList.stream()
                 .filter(unit -> peer == unit.ownerPeerId && unitId == unit.unitId)
@@ -120,19 +136,34 @@ public class PeerService
         if(updatedUnit != null) {
             switch(var){
                 case 0:
-                    updatedUnit.positionX = value;
+                    if(updatedUnit.posXSeq < sequenceNumber) {
+                        updatedUnit.positionX = value;
+                        updatedUnit.posXSeq = sequenceNumber;
+                    }
                     break;
                 case 1:
-                    updatedUnit.positionY = value;
+                    if(updatedUnit.posYSeq < sequenceNumber) {
+                        updatedUnit.positionY = value;
+                        updatedUnit.posYSeq = sequenceNumber;
+                    }
                     break;
                 case 2:
-                    updatedUnit.velocityX = value;
+                    if(updatedUnit.velXSeq < sequenceNumber) {
+                        updatedUnit.velocityX = value;
+                        updatedUnit.velXSeq = sequenceNumber;
+                    }
                     break;
                 case 3:
-                    updatedUnit.velocityY = value;
+                    if(updatedUnit.velYSeq < sequenceNumber) {
+                        updatedUnit.velocityY = value;
+                        updatedUnit.velYSeq = sequenceNumber;
+                    }
                     break;
                 case 4:
-                    updatedUnit.healthValue = value;
+                    if(updatedUnit.healthValueSeq < sequenceNumber) {
+                        updatedUnit.healthValue = value;
+                        updatedUnit.healthValueSeq = sequenceNumber;
+                    }
                     break;
             }
             return true;
@@ -147,9 +178,11 @@ public class PeerService
         System.out.printf("=====Data stored for Peer %d=====%n", peerId);
 
         for (Unit unit: unitsList) {
-            System.out.printf("%d, %d, %d, %d, %d, %d, %d%n",
-                    unit.ownerPeerId, unit.unitId, unit.positionX, unit.positionY,
-                    unit.velocityX, unit.velocityY, unit.healthValue);
+            System.out.printf("%d:%d, %d:%d, %d:%d, %d:%d, %d:%d, %d:%d, %d:%d%n",
+                    unit.ownerPeerId, unit.ownerPeerIdSeq, unit.unitId, unit.unitIdSeq,
+                    unit.positionX, unit.posXSeq, unit.positionY, unit.posYSeq,
+                    unit.velocityX, unit.velXSeq, unit.velocityY, unit.velYSeq,
+                    unit.healthValue, unit.healthValueSeq);
         }
 
     }

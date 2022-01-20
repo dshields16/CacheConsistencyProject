@@ -68,7 +68,7 @@ public class EdgeConnection extends Thread{
     public void run() {
 
         System.out.println("Starting client thread");
-        byte[] bytes = new byte[32];
+        byte[] bytes = new byte[34];
         int currentMessages = 0;
 
         try { StartConnection(); }

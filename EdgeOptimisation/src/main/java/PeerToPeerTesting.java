@@ -106,7 +106,7 @@ public class PeerToPeerTesting {
             int currentLatencyValue = 0;
 
             //generate packet
-            short[] packetData = peerObj.GenerateUpdatePacket();
+            short[] packetData = peerObj.GenerateUpdatePacket((short) -1);
 
             byte[] packetByteData = ConvertShortArrayToByte(packetData);
 

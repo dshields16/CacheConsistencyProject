@@ -15,8 +15,9 @@ import java.util.List;
 
 public class ServerClientTesting {
 
-    private static final int BASE_PORT = 6000, MESSAGES_SENT = 1;
+    private static final int BASE_PORT = 6000, MESSAGES_SENT = 2;
     private static int peerId = -1, noPeers = 0;
+    private static short sequenceNo = 0;
     private static boolean isServer = false;
 
     private static ServerSocket serverSocket;
@@ -93,7 +94,7 @@ public class ServerClientTesting {
 
         Thread thread = new Thread(() -> {
 
-            for(int i = 0; i < 1; i++) {
+            for(int i = 0; i < MESSAGES_SENT; i++) {
                 SendPacketToAllPeers();
                 try { Thread.sleep(200); }
                 catch (InterruptedException e) { e.printStackTrace(); }
@@ -161,7 +162,7 @@ public class ServerClientTesting {
 
     private static void SendPacketToAllPeers() {
         //generate packet
-        short[] packetData = peerObj.GenerateUpdatePacket();
+        short[] packetData = peerObj.GenerateUpdatePacket(sequenceNo++);
 
         byte[] packetByteData = ConvertShortArrayToByte(packetData);
 
