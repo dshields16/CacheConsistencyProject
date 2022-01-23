@@ -1,5 +1,3 @@
-package main.java;
-
 import java.util.Arrays;
 
 public class UnitTTL {
@@ -12,7 +10,7 @@ public class UnitTTL {
 
     RelevanceMetric rm;
 
-    public UnitTTL(short owner, short id){
+    public UnitTTL(short owner, short id, RelevanceMetric rm){
         positionX = 0;
         positionY = 0;
         velocityX = 0;
@@ -20,6 +18,8 @@ public class UnitTTL {
         healthValue = 0;
         clientId = owner;
         unitId = id;
+
+        this.rm = rm;
     }
 
     //init the TTL values
@@ -32,7 +32,7 @@ public class UnitTTL {
         healthValue = healthTTL;
     }
 
-    //TTL values ticked down every 200ms
+    //TTL values ticked down every 200ms automatically by RM
     public void TickTTL() {
 
         positionX--;
@@ -40,8 +40,6 @@ public class UnitTTL {
         velocityX--;
         velocityY--;
         healthValue--;
-
-        //send owner id, var and get base value
     }
 
     //get a list of values to update for this unit using TTL values
@@ -52,7 +50,7 @@ public class UnitTTL {
 
         for(int i = 0; i < 5; i++) {
 
-            if(GetVarFromIndex(i) <= 0){
+            if(GetVarFromIndex(i) <= 0) {
                 vars[size++] = i;                                   //add var to list to update
                 SetVarFromIndex(i, rm.GetTTLForVar(i, clientId));       //reset TTL
             }
@@ -80,17 +78,23 @@ public class UnitTTL {
     }
 
     private void SetVarFromIndex(int index, short value) {
+
         switch (index) {
             case 0:
                 positionX = value;
+                break;
             case 1:
                 positionY = value;
+                break;
             case 2:
                 velocityX = value;
+                break;
             case 3:
                 velocityY = value;
+                break;
             case 4:
                 healthValue = value;
+                break;
 
         }
     }

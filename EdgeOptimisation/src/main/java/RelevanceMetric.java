@@ -1,4 +1,4 @@
-package main.java;
+import org.junit.jupiter.api.parallel.Resources;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,9 +32,14 @@ public class RelevanceMetric {
     // 1 is normal and scales up as it gets worse
     int[] networkConditions;
 
-    public RelevanceMetric(int numClients, int serverId) {
+    public RelevanceMetric(int noClients, int serverId) {
+
+        this.numClients = noClients;
+        this.serverId = serverId;
 
         timeValues = new ArrayList[numClients];
+        for(int i = 0; i < numClients; i++)
+            timeValues[i] = new ArrayList<>();
 
         pos_RM = new short[numClients];
         Arrays.fill(pos_RM, (short)BASE_POS_RM);
@@ -47,7 +52,7 @@ public class RelevanceMetric {
         Arrays.fill(networkConditions, 1);
     }
 
-    //create a new unit ttl and add to all client lists except owner
+    //create a new unit ttl and add to all client lists except owner and server
     public void AddUnit(short ownerId, short unitId) {
 
         for(int i = 0; i < numClients; i++) {
@@ -55,7 +60,10 @@ public class RelevanceMetric {
             if(i == ownerId || i == serverId)
                 continue;
 
-            timeValues[i].add(new UnitTTL(ownerId, unitId));
+            UnitTTL ttl = new UnitTTL(ownerId, unitId, this);
+            ttl.SetTTL(pos_RM[ownerId], vel_RM[ownerId], healthValue_RM[ownerId]);
+
+            timeValues[i].add(ttl);
         }
     }
 
@@ -93,5 +101,17 @@ public class RelevanceMetric {
         return timeValues[clientId];
     }
 
+    /*
+        Tick down the TTL values for stored values
+     */
+    public void ProgressTTL() {
+
+        for(int i = 0; i < numClients; i++) {
+
+            for (UnitTTL ttl: timeValues[i]) {
+                ttl.TickTTL();
+            }
+        }
+    }
 
 }

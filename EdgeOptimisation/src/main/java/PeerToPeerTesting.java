@@ -1,5 +1,3 @@
-package main.java;
-
 import java.awt.*;
 import java.io.BufferedReader;
 import java.io.IOException;

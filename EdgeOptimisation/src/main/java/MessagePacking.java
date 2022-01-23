@@ -1,5 +1,3 @@
-package main.java;
-
 import java.util.Arrays;
 import java.util.List;
 
@@ -21,7 +19,7 @@ public class MessagePacking {
 
         short[] packet = new short[PeerService.MAX_PACKET_SIZE];
         int currentPacketSize = 0;
-        short[] newUpdate = new short[4];
+        short[] newUpdate;
 
         List<UnitTTL> ttlValues = rm.GetTTLValues(clientId);    //one unit maps to a ttl for this client
 
@@ -45,7 +43,7 @@ public class MessagePacking {
                     continue;
 
                 //add this update to the packet
-                newUpdate = new short[]{ (short)clientId, updatedUnit.unitId, (short)varUpdated, updatedUnit.GetVarFromIndex(varUpdated)};
+                newUpdate = new short[]{ ttl.clientId, updatedUnit.unitId, (short)varUpdated, updatedUnit.GetVarFromIndex(varUpdated)};
                 for(int j = 0; j < 4; j++) {
 
                     packet[currentPacketSize++] = newUpdate[j];

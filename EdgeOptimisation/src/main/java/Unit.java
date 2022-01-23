@@ -1,5 +1,3 @@
-package main.java;
-
 public class Unit {
 
     //Each player controls a list of units and has authority to change their data
