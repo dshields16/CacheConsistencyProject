@@ -5,7 +5,7 @@ import java.util.*;
 public class PeerService
 {
 
-    private static final int MAX_PACKET_SIZE = 1400;
+    public static final int MAX_PACKET_SIZE = 1400;
 
     short peerId = -1;
     short newUnitId = 0;
@@ -15,7 +15,7 @@ public class PeerService
     short currentValue = 10, maxValue = 100;
 
     //list of all units for every other peer
-    List<Unit> unitsList = new ArrayList<>();
+    private List<Unit> unitsList = new ArrayList<>();
 
     public PeerService(short peerId) {
         this.peerId = peerId;
@@ -178,8 +178,8 @@ public class PeerService
         System.out.printf("=====Data stored for Peer %d=====%n", peerId);
 
         for (Unit unit: unitsList) {
-            System.out.printf("%d:%d, %d:%d, %d:%d, %d:%d, %d:%d, %d:%d, %d:%d%n",
-                    unit.ownerPeerId, unit.ownerPeerIdSeq, unit.unitId, unit.unitIdSeq,
+            System.out.printf("%d, %d, %d:%d, %d:%d, %d:%d, %d:%d, %d:%d%n",
+                    unit.ownerPeerId, unit.unitId,
                     unit.positionX, unit.posXSeq, unit.positionY, unit.posYSeq,
                     unit.velocityX, unit.velXSeq, unit.velocityY, unit.velYSeq,
                     unit.healthValue, unit.healthValueSeq);
