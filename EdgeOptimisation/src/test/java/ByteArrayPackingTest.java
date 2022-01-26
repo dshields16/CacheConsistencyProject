@@ -14,8 +14,8 @@ class ByteArrayPackingTest {
     void Pack() {
 
         //generate a message packet
-        PeerService peerService = new PeerService((short) 0);
-        short[] packetData = peerService.GenerateUpdatePacket((short) 0);
+        PeerService peerService = new PeerService((short) 0, 1, -1);
+        short[] packetData = peerService.GenerateRandomClientUpdatePacket((short) 0);
 
         //convert short array to byte array which can be sent over a socket
         ByteBuffer buffer = ByteBuffer.allocate(2*packetData.length);

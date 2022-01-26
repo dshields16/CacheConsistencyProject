@@ -2,14 +2,17 @@ public class Unit {
 
     //Each player controls a list of units and has authority to change their data
 
-    short positionX, positionY, velocityX, velocityY, healthValue, ownerPeerId, unitId;
+    private short positionX, positionY, velocityX, velocityY, healthValue, ownerPeerId, unitId;
 
     //store a sequence for each to manage consistency
-    short posXSeq, posYSeq, velXSeq, velYSeq, healthValueSeq;
+    private short posXSeq, posYSeq, velXSeq, velYSeq, healthValueSeq;
+
+    //this unit has been recently created, after it has been sent to clients it is set to false
+    private boolean creationFlag = true;
 
 
 
-    public Unit(short owner, short id){
+    public Unit(short owner, short id, short seqNo){
         positionX = 0;
         positionY = 0;
         velocityX = 0;
@@ -60,4 +63,74 @@ public class Unit {
 
         return -1;
     }
+
+    public void SetVarFromIndex(int varIndex, short newValue, short sequenceNo) {
+
+        switch (varIndex) {
+            case 0:
+                positionX = newValue;
+                posXSeq = sequenceNo;
+                break;
+            case 1:
+                positionY = newValue;
+                posYSeq = sequenceNo;
+                break;
+            case 2:
+                velocityX = newValue;
+                velXSeq = sequenceNo;
+                break;
+            case 3:
+                velocityY = newValue;
+                velYSeq = sequenceNo;
+                break;
+            case 4:
+                healthValue = newValue;
+                healthValueSeq = sequenceNo;
+                break;
+
+        }
+    }
+
+    public short GetUnitId() {
+        return unitId;
+    }
+
+    public short GetOwnerId() {
+        return ownerPeerId;
+    }
+
+    public String toString() {
+
+        return String.format("%d, %d, %d:%d, %d:%d, %d:%d, %d:%d, %d:%d",
+                ownerPeerId, unitId,
+                positionX, posXSeq, positionY, posYSeq,
+                velocityX, velXSeq, velocityY, velYSeq,
+                healthValue, healthValueSeq);
+    }
+
+    public boolean IsRecentlyCreated() {
+        return creationFlag;
+    }
+
+    public void SetIsNotRecentlyCreated() {
+        creationFlag = false;
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

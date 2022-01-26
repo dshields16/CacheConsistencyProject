@@ -9,44 +9,48 @@ import static org.junit.jupiter.api.Assertions.*;
 class MessagePackingTest {
 
     static MessagePacking mp;
-    static RelevanceMetric rm;
+    static List<Unit> units;
+    static short currentSequence = 1;
 
     @BeforeAll
     static void Setup() {
 
-        mp = new MessagePacking();
-        rm = new RelevanceMetric(3, 1);
+        mp = new MessagePacking(3, 1);
 
         //generate a list of units
-        List<Unit> units = new ArrayList<>();
-        units.add(new Unit((short)0, (short)0));
-        units.add(new Unit((short)1, (short)0));
-        units.add(new Unit((short)2, (short)0));
+        units = new ArrayList<>();
+        units.add(new Unit((short)0, (short)0, currentSequence));
+        units.add(new Unit((short)1, (short)0, currentSequence));
+        units.add(new Unit((short)2, (short)0, currentSequence));
 
-        //relevance metric should generate TTL arrays for each of these units
-        rm.AddUnit((short)0, (short)0);
-        rm.AddUnit((short)1, (short)0);
-        rm.AddUnit((short)2, (short)0);
+        //called when adding a new unit in PeerService, generated TTL arrays for each of these units
+        mp.AddUnit((short)0, (short)0);
+        mp.AddUnit((short)1, (short)0);
+        mp.AddUnit((short)2, (short)0);
+    }
 
-        //apply some updates to units owned by clients 1 and 2
-        short currentSequence = 1;
-        Unit unit = units.get(1);
-        unit.positionX = 10;
-        unit.posXSeq = currentSequence;
-        unit.velocityY = 5;
-        unit.velYSeq = currentSequence;
+    /*
+        Add a new unit, generate an update packet that shows this
+     */
+    @Test
+    void GenerateNewObjectPacket() {
 
-        unit = units.get(2);
-        unit.positionX = 2;
-        unit.posXSeq = currentSequence;
-        unit.positionY = 3;
-        unit.posYSeq = currentSequence;
+        short[] newPacket = mp.GenerateUpdatePacket(0, units, currentSequence);
 
-        rm.ProgressTTL();
+        Utils.PrintShortArray(newPacket);
 
-        mp.rm = rm;
-        mp.units = units;
-        mp.currentSeq = currentSequence;
+        /*
+                packet should have updates for:
+                client 1 unit 0: created
+                client 2 unit 0: created
+         */
+
+        short[] expectedResults = new short[] {
+                1, 0, -1, 0,
+                2, 0, -1, 0
+        };
+
+        assertArrayEquals(newPacket, expectedResults);
     }
 
     /*
@@ -55,7 +59,22 @@ class MessagePackingTest {
     @Test
     void GenerateUpdatePacket() {
 
-        short[] newPacket = mp.GenerateUpdatePacket(0);
+        mp.GenerateUpdatePacket(2, units, currentSequence); //set creation flag to false for both new objects
+        currentSequence++;
+
+
+        //apply some updates to units owned by clients 1 and 2
+        Unit unit = units.get(1);
+        unit.SetVarFromIndex(0, (short) 10, currentSequence);
+        unit.SetVarFromIndex(4, (short) 5, currentSequence);
+
+        unit = units.get(2);
+        unit.SetVarFromIndex(0, (short) 2, currentSequence);
+        unit.SetVarFromIndex(1, (short) 3, currentSequence);
+
+        short[] newPacket = mp.GenerateUpdatePacket(0, units, currentSequence);
+
+        Utils.PrintShortArray(newPacket);
 
         /*
                 packet should have updates for:
@@ -71,4 +90,5 @@ class MessagePackingTest {
 
         assertArrayEquals(newPacket, expectedResults);
     }
+
 }

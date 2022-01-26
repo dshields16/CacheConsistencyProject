@@ -15,14 +15,19 @@ public class PeerService
     //list of all units for every other peer
     private List<Unit> unitsList = new ArrayList<>();
 
-    public PeerService(short peerId) {
+    //private RelevanceMetric relevanceMetric;
+    private MessagePacking messagePacking;
+
+    public PeerService(short peerId, int numClients, int serverId) {
         this.peerId = peerId;
+        messagePacking = new MessagePacking(numClients, serverId);
     }
 
     //add a new unit and return packet string
-    private short[] AddNewUnit() {
+    private short[] AddNewUnit(short sequenceNo) {
 
-        unitsList.add(new Unit(peerId, newUnitId));
+        unitsList.add(new Unit(peerId, newUnitId, sequenceNo));
+        messagePacking.AddUnit(peerId, newUnitId);
 
         short data[] = { peerId, newUnitId, -1, 0 };
         newUnitId++;
@@ -31,39 +36,38 @@ public class PeerService
 
     /*
 
-    Send update packet, packets consist of a list unit state updates of the form:
+    Generate a random client update packet,
+    packets consist of a list unit state updates of the form:
     [ ownerID, unitID, variable to update, new value ]
     where each value is a short of size 2 bytes
 
-    variable no: var
-    -1: new unit
-    0:  posX
-    1:  posY
-    2:  velX
-    3:  velY
-    4:  health
+    If sequence number is <0 then this is the client connection handshake packet, otherwise:
+     the first byte is the sequence number of the packet used for synchronisation
+     the second byte is the length of packet, number of short values excluding "header" values
 
      */
-    public short[] GenerateUpdatePacket(short sequenceNo) {
+    public short[] GenerateRandomClientUpdatePacket(short sequenceNo) {
 
 
         short packetData[];
         int updatesToSend = 4, currentPacketSize = 0;
         short[] newData;
 
-        if(sequenceNo != -1) {
-            packetData = new short[MAX_PACKET_SIZE + 1];
+        if(sequenceNo >= 0) {
+            packetData = new short[MAX_PACKET_SIZE];
             packetData[0] = sequenceNo;
-            currentPacketSize = 1;
+            packetData[1] = 0;
+            currentPacketSize = 2;
         }
         else {
+            System.out.println("Generating an update with sequence number less than 0");
             packetData = new short[MAX_PACKET_SIZE];
         }
 
 
         for (int i = 0; i < updatesToSend; i++){
             if(newUnitId < maxUnits){
-                newData = AddNewUnit();
+                newData = AddNewUnit(sequenceNo);
             }
             else {
                 newData = new short[]{ peerId, currentUnit, currentVar, currentValue};
@@ -83,33 +87,44 @@ public class PeerService
                 packetData[currentPacketSize + j] = newData[j];
             }
             currentPacketSize += 4;
+
+            System.out.printf("New command: %d, %d, %d, %d%n", newData[0], newData[1], newData[2], newData[3]);
         }
+
+        //update packet length
+        packetData[1] = (short) (currentPacketSize-2);
 
         short[] finalPacketData = Arrays.copyOfRange(packetData, 0, currentPacketSize);
 
+        Utils.PrintShortArray(finalPacketData);
+
         return finalPacketData;
+    }
+
+    /*
+
+    The server generates a packet of updates from all clients for a specific client.
+    The updates uses a combination of storing TTL values and relevance metrics to only
+    send the values which are necessary to minimise the size of packets being sent
+
+     */
+    public short[] GenerateServerUpdatePacket(short sequenceNo, int receivingClientId) {
+
+        return messagePacking.GenerateUpdatePacket(receivingClientId, unitsList, sequenceNo);
     }
 
     //receive update packet
     public void ReceivePacket(short[] packetData) {
         System.out.printf("Peer %d receiving data of length %d%n", peerId, packetData.length);
-        int length = packetData.length;
-        int startValue = 0;
-        short sequenceNo = -1;
-        if(length % 4 != 0) {
-            sequenceNo = packetData[0];
-            startValue = 1;
-        }
+        Utils.PrintShortArray(packetData);
+        short sequenceNo = packetData[0], length = packetData[1], startValue = 2;
 
-
-
-        for(int i = startValue; i < length; i += 4){
-            short ownerId = packetData[i];
-            short unitId = packetData[i+1];
-            short varToUpdate = packetData[i+2];
-            short newValue = packetData[i+3];
-
-            //System.out.printf("Peer %d received value %d, %d, %d, %d%n", peerId, ownerId, unitId, varToUpdate, newValue);
+        for(int i = 0; i < length; i += 4){
+            int currentIndex = startValue+i;
+            short ownerId = packetData[currentIndex];
+            short unitId = packetData[currentIndex+1];
+            short varToUpdate = packetData[currentIndex+2];
+            short newValue = packetData[currentIndex+3];
 
             CompleteParsedCommand(ownerId, unitId, varToUpdate, newValue, sequenceNo);
         }
@@ -121,48 +136,22 @@ public class PeerService
     boolean CompleteParsedCommand(short peer, short unitId, short var, short value, short sequenceNumber) {
 
         if(var == -1) {
-            unitsList.add(new Unit(peer, unitId));
+            unitsList.add(new Unit(peer, unitId, sequenceNumber));
+            messagePacking.AddUnit(peer, unitId);
             return true;
         }
 
         //check sequence value and return if stored value is higher ------------
 
         Unit updatedUnit = unitsList.stream()
-                .filter(unit -> peer == unit.ownerPeerId && unitId == unit.unitId)
+                .filter(unit -> peer == unit.GetOwnerId() && unitId == unit.GetUnitId())
                 .findAny()
                 .orElse(null);
         if(updatedUnit != null) {
-            switch(var){
-                case 0:
-                    if(updatedUnit.posXSeq < sequenceNumber) {
-                        updatedUnit.positionX = value;
-                        updatedUnit.posXSeq = sequenceNumber;
-                    }
-                    break;
-                case 1:
-                    if(updatedUnit.posYSeq < sequenceNumber) {
-                        updatedUnit.positionY = value;
-                        updatedUnit.posYSeq = sequenceNumber;
-                    }
-                    break;
-                case 2:
-                    if(updatedUnit.velXSeq < sequenceNumber) {
-                        updatedUnit.velocityX = value;
-                        updatedUnit.velXSeq = sequenceNumber;
-                    }
-                    break;
-                case 3:
-                    if(updatedUnit.velYSeq < sequenceNumber) {
-                        updatedUnit.velocityY = value;
-                        updatedUnit.velYSeq = sequenceNumber;
-                    }
-                    break;
-                case 4:
-                    if(updatedUnit.healthValueSeq < sequenceNumber) {
-                        updatedUnit.healthValue = value;
-                        updatedUnit.healthValueSeq = sequenceNumber;
-                    }
-                    break;
+
+            if(updatedUnit.GetSeqFromIndex(var) < sequenceNumber) {
+
+                updatedUnit.SetVarFromIndex(var, value, sequenceNumber);
             }
             return true;
         }
@@ -176,11 +165,7 @@ public class PeerService
         System.out.printf("=====Data stored for Peer %d=====%n", peerId);
 
         for (Unit unit: unitsList) {
-            System.out.printf("%d, %d, %d:%d, %d:%d, %d:%d, %d:%d, %d:%d%n",
-                    unit.ownerPeerId, unit.unitId,
-                    unit.positionX, unit.posXSeq, unit.positionY, unit.posYSeq,
-                    unit.velocityX, unit.velXSeq, unit.velocityY, unit.velYSeq,
-                    unit.healthValue, unit.healthValueSeq);
+            System.out.println(unit.toString());
         }
 
     }

@@ -34,7 +34,7 @@ public class PeerToPeerTesting {
         int portNumber = BASE_PORT + peerId;
         System.out.printf("Peer Service %d running on port %d%n", peerId, portNumber);
 
-        PeerService peerObj = new PeerService((short) peerId);
+        PeerService peerObj = new PeerService((short) peerId, noPeers, -1);
 
         //set up server
         serverSocket = new ServerSocket(portNumber);
@@ -104,7 +104,7 @@ public class PeerToPeerTesting {
             int currentLatencyValue = 0;
 
             //generate packet
-            short[] packetData = peerObj.GenerateUpdatePacket((short) -1);
+            short[] packetData = peerObj.GenerateRandomClientUpdatePacket((short) -1);
 
             byte[] packetByteData = ConvertShortArrayToByte(packetData);
 

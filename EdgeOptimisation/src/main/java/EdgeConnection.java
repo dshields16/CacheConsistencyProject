@@ -6,27 +6,29 @@ import java.time.LocalTime;
 
 public class EdgeConnection extends Thread{
 
+    public static final int BASE_PORT = 6000;
+
     private Socket peerSocket;
     private OutputStream out;
     private InputStream in;
 
-    private int latency = 0;
-    private int messagesToReceive = 1;
+    private int latency = 0, messagesToReceive = 1, connectedClientId = -1;
 
     private PeerService peerService;
 
     private boolean isServer = false;
 
     //server make connection with communicating client
-    public EdgeConnection(Socket socket, PeerService peerService) {
-
+    public EdgeConnection(Socket socket, PeerService peerService, int clientId) {
+        connectedClientId = clientId;
         this.peerSocket = socket;
         this.peerService = peerService;
     }
 
     //client start connection with server
-    public EdgeConnection(int port, PeerService peerService) throws IOException {
-        peerSocket = new Socket("localhost", port);
+    public EdgeConnection(int clientId, PeerService peerService) throws IOException {
+        connectedClientId = clientId;
+        peerSocket = new Socket("localhost", connectedClientId + BASE_PORT);
         this.peerService = peerService;
     }
 
@@ -62,11 +64,15 @@ public class EdgeConnection extends Thread{
         return latency;
     }
 
+    public int GetConnectedClientId() {
+        return connectedClientId;
+    }
+
     //read in data, length sent first
     public void run() {
 
         System.out.println("Starting client thread");
-        byte[] bytes = new byte[34];
+        byte[] bytes = new byte[64];
         int currentMessages = 0;
 
         try { StartConnection(); }
@@ -83,23 +89,17 @@ public class EdgeConnection extends Thread{
                     continue;
                 }
 
-                System.out.printf("Received packet at %s%n", LocalTime.now());
-                String message = "";
-                for(int i = 0; i < bytes.length; i++){
-                    message += String.format("%d", bytes[i]);
-                    if(i < bytes.length - 1) {
-                        message += String.format(", ", bytes[i]);
-                    }
-                }
-                System.out.println(message);
+                System.out.printf("Received packet from peer %d at %s%n", connectedClientId, LocalTime.now());
+                //Utils.PrintByteArray(bytes);
 
                 //if this is the first message received as a client, server has connected to all clients
                 if(!isServer && currentMessages == 0) {
 
                     currentMessages++;
                     if(bytes[0] == 1) {
+                        //start sending data now all clients have connected
                         System.out.println("Server has connected with all clients");
-                        ServerClientTesting.SendData();
+                        ServerClientTesting.ClientSendData();
                         continue;
                     }
                     else {
@@ -109,11 +109,6 @@ public class EdgeConnection extends Thread{
                 }
 
                 currentMessages++;
-
-                //if server, repeat message to all other clients
-                if(isServer) {
-                    ServerClientTesting.ServerSendPacketToAllPeersExceptOne(bytes, this);
-                }
 
                 //convert to short array
                 short[] sendPacket = new short[bytes.length / 2];

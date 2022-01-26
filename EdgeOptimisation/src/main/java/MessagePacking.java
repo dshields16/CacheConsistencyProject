@@ -10,12 +10,24 @@ public class MessagePacking {
             pack and send message
      */
 
-    RelevanceMetric rm;
+    private RelevanceMetric rm;
+    private int numClients = 0;
 
-    List<Unit> units;   //get this from PeerService
-    int currentSeq = 0;
+    public MessagePacking(int numClients, int serverId) {
 
-    public short[] GenerateUpdatePacket(int clientId) {
+        this.rm = new RelevanceMetric(numClients, serverId);
+        this.numClients = numClients;
+    }
+
+    public void AddUnit(short ownerId, short unitId) {
+        rm.AddUnit(ownerId, unitId);
+    }
+
+
+    public short[] GenerateUpdatePacket(int clientId, List<Unit> units, int currentSeq) {
+
+        if(clientId == 0)
+            rm.ProgressTTL();   //increment ttl values for all stored values
 
         short[] packet = new short[PeerService.MAX_PACKET_SIZE];
         int currentPacketSize = 0;
@@ -30,20 +42,40 @@ public class MessagePacking {
 
             //get the unit related to this ttl
             Unit updatedUnit = units.stream()
-                    .filter(unit -> ttl.clientId == unit.ownerPeerId && ttl.unitId == unit.unitId)
+                    .filter(unit -> ttl.clientId == unit.GetOwnerId() && ttl.unitId == unit.GetUnitId())
                     .findAny()
                     .orElse(null);
+
+            //check if the unit has been recently created
+            if(updatedUnit.IsRecentlyCreated()) {
+
+                newUpdate = new short[]{ ttl.clientId, updatedUnit.GetUnitId(), (short)-1, (short)0};
+                for(int j = 0; j < 4; j++) {
+
+                    packet[currentPacketSize++] = newUpdate[j];
+                }
+
+                //if this is the last client to be updated, disable creation flag
+                if(clientId == numClients-1 || (updatedUnit.GetOwnerId() == numClients-1 && clientId == GetPenultimateClient())) {
+                    updatedUnit.SetIsNotRecentlyCreated();
+                }
+            }
 
             //for each 0 ttl value, check its sequence number to ensure it needs to be sent
             for(int i = 0; i < varsToSend.length; i++) {
 
                 //check currentSeq - varSeq > RM, skip (value has not been updated recently)
                 int varUpdated = varsToSend[i];
-                if(currentSeq - updatedUnit.GetSeqFromIndex(varUpdated) > rm.GetTTLForVar(varsToSend[i], updatedUnit.ownerPeerId))
+
+                System.out.printf("%d %d %d%n", currentSeq, updatedUnit.GetSeqFromIndex(varUpdated), rm.GetTTLForVar(varsToSend[i], updatedUnit.GetOwnerId()));
+
+                if(currentSeq - updatedUnit.GetSeqFromIndex(varUpdated) > rm.GetTTLForVar(varsToSend[i], updatedUnit.GetOwnerId())) {
                     continue;
+                }
+
 
                 //add this update to the packet
-                newUpdate = new short[]{ ttl.clientId, updatedUnit.unitId, (short)varUpdated, updatedUnit.GetVarFromIndex(varUpdated)};
+                newUpdate = new short[]{ ttl.clientId, updatedUnit.GetUnitId(), (short)varUpdated, updatedUnit.GetVarFromIndex(varUpdated)};
                 for(int j = 0; j < 4; j++) {
 
                     packet[currentPacketSize++] = newUpdate[j];
@@ -55,5 +87,13 @@ public class MessagePacking {
         short[] finalPacketData = Arrays.copyOfRange(packet, 0, currentPacketSize);
 
         return finalPacketData;
+    }
+
+    //for the edge case of creating a client and ending before the final client
+    private int GetPenultimateClient() {
+        int id = numClients-2;
+        if(id == numClients/2)
+            return numClients-3;
+        return id;
     }
 }

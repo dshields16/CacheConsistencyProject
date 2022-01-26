@@ -13,7 +13,7 @@ import java.util.List;
 
 public class ServerClientTesting {
 
-    private static final int BASE_PORT = 6000, MESSAGES_SENT = 2;
+    private static final int MESSAGES_SENT = 2;
     private static int peerId = -1, noPeers = 0;
     private static short sequenceNo = 0;
     private static boolean isServer = false;
@@ -35,7 +35,6 @@ public class ServerClientTesting {
         } catch (final NumberFormatException e) {
             System.err.println("Invalid port number");
         }
-        int portNumber = BASE_PORT + peerId;
 
         //identify the server client, middle of the list
         int serverId = noPeers / 2;
@@ -45,16 +44,16 @@ public class ServerClientTesting {
         }
 
         if(isServer) {
-            System.out.printf("Server Service %d running on port %d%n", peerId, portNumber);
+            System.out.printf("Server Service %d running on port %d%n", peerId, EdgeConnection.BASE_PORT+peerId);
         }
         else {
-            System.out.printf("Client Service %d running on port %d%n", peerId, portNumber);
+            System.out.printf("Client Service %d running on port %d%n", peerId, EdgeConnection.BASE_PORT+peerId);
         }
 
-        peerObj = new PeerService((short) peerId);
+        peerObj = new PeerService((short) peerId, noPeers, serverId);
 
         //set up server socket
-        serverSocket = new ServerSocket(portNumber);
+        serverSocket = new ServerSocket(EdgeConnection.BASE_PORT+peerId);
 
         //if we are a server then we want to establish a connection with each client as peers would do
         if(isServer) {
@@ -68,8 +67,8 @@ public class ServerClientTesting {
         //sort list of connections by latency to make sending by latency easier
         if(isServer) {
             peerConnectionList.sort(Comparator.comparing(EdgeConnection::GetLatency));
-            SendMessageToAllPeers(new byte[] {1});
-            SendData();
+            SendMessageToAllPeers(new byte[] {1});  //start communication
+            ServerSendData();
         }
 
         //client - wait for server to send ok message, send data to server
@@ -88,12 +87,30 @@ public class ServerClientTesting {
 
     }
 
-    public static void SendData() {
+    //Every 200ms, server generates a random update then sends a unique update from all data to each client
+    private static void ServerSendData() {
 
         Thread thread = new Thread(() -> {
 
             for(int i = 0; i < MESSAGES_SENT; i++) {
-                SendPacketToAllPeers();
+
+                peerObj.GenerateRandomClientUpdatePacket(sequenceNo++);
+                SendUpdateMessageToClients();
+                try { Thread.sleep(200); }
+                catch (InterruptedException e) { e.printStackTrace(); }
+            }
+
+        });
+        thread.start();
+    }
+
+    //Clients generate a random update every 200ms and send to the server
+    public static void ClientSendData() {
+
+        Thread thread = new Thread(() -> {
+
+            for(int i = 0; i < MESSAGES_SENT; i++) {
+                ClientSendUpdatePacket();
                 try { Thread.sleep(200); }
                 catch (InterruptedException e) { e.printStackTrace(); }
             }
@@ -104,17 +121,14 @@ public class ServerClientTesting {
 
     private static void SetupServer() throws IOException {
 
-
-
         //send a message to each preceding peer
         for(int i = 0; i < peerId; i++) {
 
             System.out.printf("Establishing connection with peer %d%n", i);
-            EdgeConnection newPeer = new EdgeConnection(BASE_PORT + i, peerObj);
+            EdgeConnection newPeer = new EdgeConnection(i, peerObj);
             newPeer.SetLatency(GenerateLatencyValue(i));
             newPeer.SetMessagesToReceive(MESSAGES_SENT);
             newPeer.SetIsServer();
-            newPeer.SetMessagesToReceive(MESSAGES_SENT);
 
             peerConnectionList.add(newPeer);
             newPeer.start();
@@ -124,7 +138,7 @@ public class ServerClientTesting {
         for(int i = peerId + 1; i < noPeers; i++) {
 
             //client socket created when a client connects
-            EdgeConnection newPeer = new EdgeConnection(serverSocket.accept(), peerObj);
+            EdgeConnection newPeer = new EdgeConnection(serverSocket.accept(), peerObj, i);
 
             System.out.printf("Establishing connection with peer %d%n", i);
             newPeer.SetLatency(GenerateLatencyValue(i));
@@ -138,17 +152,17 @@ public class ServerClientTesting {
 
     private static void SetupClient(int serverId) throws IOException {
 
-        //init signal, server + other clients
+        //init signal, other clients each send a message x times
         int messagesToReceive = 1 + (MESSAGES_SENT * (noPeers - 1));
 
         EdgeConnection newPeer;
 
         //if we have a peer id lower than the server, listen for a connection
         if(peerId < serverId) {
-            newPeer = new EdgeConnection(serverSocket.accept(), peerObj);
+            newPeer = new EdgeConnection(serverSocket.accept(), peerObj, serverId);
         }
         else {
-            newPeer = new EdgeConnection(BASE_PORT + serverId, peerObj);
+            newPeer = new EdgeConnection(serverId, peerObj);
         }
 
         newPeer.SetLatency(GenerateLatencyValue(serverId));
@@ -158,13 +172,38 @@ public class ServerClientTesting {
 
     }
 
-    private static void SendPacketToAllPeers() {
+    private static void ClientSendUpdatePacket() {
         //generate packet
-        short[] packetData = peerObj.GenerateUpdatePacket(sequenceNo++);
+        short[] packetData = peerObj.GenerateRandomClientUpdatePacket(sequenceNo++);
 
         byte[] packetByteData = ConvertShortArrayToByte(packetData);
 
-        SendMessageToAllPeers(packetByteData);
+        SendMessageToServer(packetByteData);
+    }
+
+    private static void SendMessageToServer(byte[] message) {
+
+        if(isServer)
+            return;
+
+        System.out.printf("Sending packet at %s%n", LocalTime.now());
+
+        //make a new thread to send packet
+        Thread thread = new Thread(() -> {
+
+            //Utils.PrintByteArray(message);
+            EdgeConnection serverConnection = peerConnectionList.get(0);
+
+            try { Thread.sleep(serverConnection.GetLatency()); }
+            catch (InterruptedException e) { e.printStackTrace(); }
+
+            try {   serverConnection.SendMessage(message); }
+            catch (IOException e) { e.printStackTrace(); }
+
+
+        });
+
+        thread.start();
     }
 
     private static void SendMessageToAllPeers(byte[] message) {
@@ -213,27 +252,38 @@ public class ServerClientTesting {
         thread.start();
     }
 
-    //Server should repeat received packets to every other client
-    public static void ServerSendPacketToAllPeersExceptOne(byte[] message, EdgeConnection sender) {
+    private static void SendUpdateMessageToClients() {
 
-        System.out.printf("Server repeating packet at %s%n", LocalTime.now());
+        System.out.printf("Sending update packets starting at %s%n", LocalTime.now());
 
         //make a new thread to send packet
         Thread thread = new Thread(() -> {
 
             //keep a count of current latency
             int currentLatencyValue = 0;
+/*
+            System.out.println("Sent packet: ");
+            String messageS = "";
+            for(int i = 0; i < message.length; i++){
+                messageS += String.format("%d", message[i]);
+                if(i < message.length - 1) {
+                    messageS += String.format(", ", message[i]);
+                }
+            }
+            System.out.println(messageS);
 
-            //send to all peers
+ */
+
+            //for each client
             for (EdgeConnection peer : peerConnectionList) {
 
-                if(peer.equals(sender)){
-                    continue;
-                }
+                //generate update message specific to that client
+                int clientId = peer.GetConnectedClientId();
+                short[] packet = peerObj.GenerateServerUpdatePacket(sequenceNo, clientId);
+                byte[] message = ConvertShortArrayToByte(packet);
 
                 //get the difference in latency and sleep for that duration
-                int peerLatency = peer.GetLatency();
-                int addedLatency = peerLatency - currentLatencyValue;
+                int addedLatency = peer.GetLatency() - currentLatencyValue;
 
                 if(addedLatency > 0) {
                     try { Thread.sleep(addedLatency); }
@@ -252,6 +302,15 @@ public class ServerClientTesting {
         });
 
         thread.start();
+    }
+
+    //Get the socket connected to the client
+    private EdgeConnection GetConnection(int clientId) {
+
+        return peerConnectionList.stream()
+                .filter(connection -> clientId == connection.GetConnectedClientId())
+                .findAny()
+                .orElse(null);
     }
 
     private static void StopServer() throws IOException {
