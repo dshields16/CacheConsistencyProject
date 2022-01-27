@@ -13,13 +13,16 @@ import java.util.List;
 
 public class PeerToPeerTesting {
 
-    private static final int BASE_PORT = 6000;
+    private static final int BASE_PORT = 6000, MESSAGES_SENT = 20;
     private static int peerId = -1, noPeers = 0;
 
     private static ServerSocket serverSocket;
 
     //private static Map<Integer, PeerConnection> peerConnectionMap = new HashMap<>();
     private static List<PeerConnection> peerConnectionList = new ArrayList<>();
+
+    //store details about packets sent to monitor traffic
+    private static int packetsSent, totalPacketSize, sequenceNo = 0;
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
@@ -45,7 +48,7 @@ public class PeerToPeerTesting {
             System.out.printf("Establishing connection with peer %d%n", i);
             PeerConnection newPeer = new PeerConnection(BASE_PORT + i, peerObj);
             newPeer.SetLatency(GenerateLatencyValue(i));
-
+            newPeer.SetMessagesToReceive(MESSAGES_SENT);
             peerConnectionList.add(newPeer);
             newPeer.start();
         }
@@ -57,6 +60,7 @@ public class PeerToPeerTesting {
             //client socket created when a client connects
             PeerConnection newPeer = new PeerConnection(serverSocket.accept(), peerObj);
             newPeer.SetLatency(GenerateLatencyValue(i));
+            newPeer.SetMessagesToReceive(MESSAGES_SENT);
             peerConnectionList.add(newPeer);
             newPeer.start();
         }
@@ -65,21 +69,21 @@ public class PeerToPeerTesting {
         peerConnectionList.sort(Comparator.comparing(PeerConnection::GetLatency));
 
 
+        Thread thread = new Thread(() -> {
 
-        //if(peerId == 0) {
-
-            Thread thread = new Thread(() -> {
-
-                for(int i = 0; i < 2; i++) {
-                    SendPacketToAllPeers(peerObj);
-                    try { Thread.sleep(200); }
-                    catch (InterruptedException e) { e.printStackTrace(); }
+            for (int i = 0; i < MESSAGES_SENT; i++) {
+                SendPacketToAllPeers(peerObj);
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
+            }
 
-            });
-            thread.start();
+        });
+        thread.start();
 
-        //}
+
 
         //wait for all connections to end
         for (PeerConnection peer:peerConnectionList) {
@@ -87,7 +91,8 @@ public class PeerToPeerTesting {
         }
 
         peerObj.OutputStoredData();
-
+        OutputAveragelatency();
+        OutputOutgoingPacketStats();
 
         StopServer();
 
@@ -95,7 +100,7 @@ public class PeerToPeerTesting {
 
     private static void SendPacketToAllPeers(PeerService peerObj) {
 
-        System.out.printf("Sending packet at %s%n", LocalTime.now());
+        System.out.printf("Sending packets at %s%n", LocalTime.now());
 
         //make a new thread to send packet
         Thread thread = new Thread(() -> {
@@ -103,19 +108,18 @@ public class PeerToPeerTesting {
             //keep a count of current latency
             int currentLatencyValue = 0;
 
-            //generate packet
-            short[] packetData = peerObj.GenerateRandomClientUpdatePacket((short) -1);
+            //generate packet, sequence number not used but required for integration with Server-Client code
+            short[] packetData = peerObj.GenerateRandomClientUpdatePacket((short) sequenceNo++);
+            //Utils.PrintShortArray(packetData);
 
             byte[] packetByteData = ConvertShortArrayToByte(packetData);
 
-            System.out.println("Sent packet: ");
-            for(int i = 0; i < 16; i++){
-                System.out.printf("%d, ", packetData[i]);
-            }
-            System.out.println();
-
             //send to all peers
             for (PeerConnection peer : peerConnectionList) {
+
+                //add packet stats
+                packetsSent++;
+                totalPacketSize += packetData.length;
 
                 //get the difference in latency and sleep for that duration
                 int peerLatency = peer.GetLatency();
@@ -158,5 +162,30 @@ public class PeerToPeerTesting {
         //peer 0 and peer 1 have a (base + 5)ms
 
         return 5 * Math.abs(peerId - otherPeerId);
+    }
+
+    private static void OutputAveragelatency() {
+
+        float latencySum = 0;
+        int baseLatency = 13, maxLatency = 0;
+
+        for (PeerConnection connection:peerConnectionList) {
+            latencySum += connection.GetLatency() + baseLatency;
+
+            if(connection.GetLatency() > maxLatency) {
+                maxLatency = connection.GetLatency() + baseLatency;
+            }
+        }
+
+        System.out.printf("Max latency: %dms%n", maxLatency);
+        System.out.printf("Mean latency: %dms%n", (int)(latencySum / peerConnectionList.size()));
+    }
+
+    private static void OutputOutgoingPacketStats() {
+
+        float avgPacketSize = totalPacketSize / packetsSent;
+
+        System.out.printf("Packets sent: %d%n", packetsSent);
+        System.out.printf("Average packet size: %.2f bytes%n", avgPacketSize*2);
     }
 }

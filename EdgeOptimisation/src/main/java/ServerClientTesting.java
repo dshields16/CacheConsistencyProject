@@ -13,7 +13,7 @@ import java.util.List;
 
 public class ServerClientTesting {
 
-    private static final int MESSAGES_SENT = 2;
+    private static final int MESSAGES_SENT = 20;
     private static int peerId = -1, noPeers = 0;
     private static short sequenceNo = 0;
     private static boolean isServer = false;
@@ -24,6 +24,9 @@ public class ServerClientTesting {
 
     //private static Map<Integer, PeerConnection> peerConnectionMap = new HashMap<>();
     private static List<EdgeConnection> peerConnectionList = new ArrayList<>();
+
+    //store details about packets sent to monitor traffic
+    private static int packetsSent, totalPacketSize;
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
@@ -81,7 +84,8 @@ public class ServerClientTesting {
         }
 
         peerObj.OutputStoredData();
-
+        OutputAveragelatency();
+        OutputOutgoingPacketStats();
 
         StopServer();
 
@@ -94,8 +98,9 @@ public class ServerClientTesting {
 
             for(int i = 0; i < MESSAGES_SENT; i++) {
 
-                peerObj.GenerateRandomClientUpdatePacket(sequenceNo++);
-                SendUpdateMessageToClients();
+                peerObj.GenerateRandomClientUpdatePacket(sequenceNo);
+                SendUpdateMessageToClients(sequenceNo++);
+
                 try { Thread.sleep(200); }
                 catch (InterruptedException e) { e.printStackTrace(); }
             }
@@ -153,7 +158,7 @@ public class ServerClientTesting {
     private static void SetupClient(int serverId) throws IOException {
 
         //init signal, other clients each send a message x times
-        int messagesToReceive = 1 + (MESSAGES_SENT * (noPeers - 1));
+        int messagesToReceive = 1 + (MESSAGES_SENT);
 
         EdgeConnection newPeer;
 
@@ -176,8 +181,11 @@ public class ServerClientTesting {
         //generate packet
         short[] packetData = peerObj.GenerateRandomClientUpdatePacket(sequenceNo++);
 
-        byte[] packetByteData = ConvertShortArrayToByte(packetData);
+        //add packet stats
+        packetsSent++;
+        totalPacketSize += packetData.length;
 
+        byte[] packetByteData = ConvertShortArrayToByte(packetData);
         SendMessageToServer(packetByteData);
     }
 
@@ -252,34 +260,30 @@ public class ServerClientTesting {
         thread.start();
     }
 
-    private static void SendUpdateMessageToClients() {
+    private static void SendUpdateMessageToClients(short sequenceNumber) {
 
-        System.out.printf("Sending update packets starting at %s%n", LocalTime.now());
+        //System.out.printf("Sending update packets starting at %s with sequence number %d%n", LocalTime.now(), sequenceNumber);
 
         //make a new thread to send packet
         Thread thread = new Thread(() -> {
 
             //keep a count of current latency
             int currentLatencyValue = 0;
-/*
-            System.out.println("Sent packet: ");
-            String messageS = "";
-            for(int i = 0; i < message.length; i++){
-                messageS += String.format("%d", message[i]);
-                if(i < message.length - 1) {
-                    messageS += String.format(", ", message[i]);
-                }
-            }
-            System.out.println(messageS);
-
- */
 
             //for each client
             for (EdgeConnection peer : peerConnectionList) {
 
                 //generate update message specific to that client
                 int clientId = peer.GetConnectedClientId();
-                short[] packet = peerObj.GenerateServerUpdatePacket(sequenceNo, clientId);
+                short[] packet = peerObj.GenerateServerUpdatePacket(sequenceNumber, clientId);
+
+                System.out.printf("Generated update for client %d%n", clientId);
+                Utils.PrintShortArray(packet);
+
+                //add packet stats
+                packetsSent++;
+                totalPacketSize += packet.length;
+
                 byte[] message = ConvertShortArrayToByte(packet);
 
                 //get the difference in latency and sleep for that duration
@@ -331,5 +335,30 @@ public class ServerClientTesting {
         //peer 0 and peer 1 have a (base + 5)ms
 
         return 5 * Math.abs(peerId - otherPeerId);
+    }
+
+    private static void OutputAveragelatency() {
+
+        float latencySum = 0;
+        int baseLatency = 13, maxLatency = 0;
+
+        for (EdgeConnection connection:peerConnectionList) {
+            latencySum += connection.GetLatency() + baseLatency;
+
+            if(connection.GetLatency() > maxLatency) {
+                maxLatency = connection.GetLatency() + baseLatency;
+            }
+        }
+
+        System.out.printf("Max latency: %dms%n", maxLatency);
+        System.out.printf("Mean latency: %dms%n", (int)(latencySum / peerConnectionList.size()));
+    }
+
+    private static void OutputOutgoingPacketStats() {
+
+        float avgPacketSize = totalPacketSize / packetsSent;
+
+        System.out.printf("Packets sent: %d%n", packetsSent);
+        System.out.printf("Average packet size: %.2f bytes%n", avgPacketSize*2);
     }
 }

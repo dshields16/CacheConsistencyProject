@@ -13,6 +13,8 @@ public class MessagePacking {
     private RelevanceMetric rm;
     private int numClients = 0;
 
+    private static int MESSAGE_DELAY = 1;   //allow for delay in sending messages
+
     public MessagePacking(int numClients, int serverId) {
 
         this.rm = new RelevanceMetric(numClients, serverId);
@@ -30,7 +32,8 @@ public class MessagePacking {
             rm.ProgressTTL();   //increment ttl values for all stored values
 
         short[] packet = new short[PeerService.MAX_PACKET_SIZE];
-        int currentPacketSize = 0;
+        packet[0] = (short) currentSeq;
+        int currentPacketSize = 2;
         short[] newUpdate;
 
         List<UnitTTL> ttlValues = rm.GetTTLValues(clientId);    //one unit maps to a ttl for this client
@@ -39,6 +42,8 @@ public class MessagePacking {
         for (UnitTTL ttl:ttlValues) {
 
             int[] varsToSend = ttl.GetVarsToSend(); //which vars should be checked
+
+            //System.out.printf("Found %d vars to send%n", varsToSend.length);
 
             //get the unit related to this ttl
             Unit updatedUnit = units.stream()
@@ -67,9 +72,9 @@ public class MessagePacking {
                 //check currentSeq - varSeq > RM, skip (value has not been updated recently)
                 int varUpdated = varsToSend[i];
 
-                System.out.printf("%d %d %d%n", currentSeq, updatedUnit.GetSeqFromIndex(varUpdated), rm.GetTTLForVar(varsToSend[i], updatedUnit.GetOwnerId()));
+                //System.out.printf("%d %d %d%n", currentSeq, updatedUnit.GetSeqFromIndex(varUpdated), rm.GetTTLForVar(varsToSend[i], updatedUnit.GetOwnerId()));
 
-                if(currentSeq - updatedUnit.GetSeqFromIndex(varUpdated) > rm.GetTTLForVar(varsToSend[i], updatedUnit.GetOwnerId())) {
+                if(currentSeq - updatedUnit.GetSeqFromIndex(varUpdated) > rm.GetTTLForVar(varsToSend[i], updatedUnit.GetOwnerId()) + MESSAGE_DELAY) {
                     continue;
                 }
 
@@ -82,6 +87,8 @@ public class MessagePacking {
                 }
             }
         }
+
+        packet[1] = (short) (currentPacketSize-2);
 
         //return final packet
         short[] finalPacketData = Arrays.copyOfRange(packet, 0, currentPacketSize);

@@ -1,8 +1,0 @@
-<component name="ArtifactManager">
-  <artifact type="jar" name="PeerToPeer:jar">
-    <output-path>$PROJECT_DIR$/out/artifacts/PeerToPeer_jar</output-path>
-    <root id="archive" name="EdgeOptimisation.jar">
-      <element id="module-output" name="EdgeOptimisation" />
-    </root>
-  </artifact>
-</component>

@@ -10,7 +10,7 @@ public class PeerConnection extends Thread{
     private OutputStream out;
     private InputStream in;
 
-    private int latency = 0;
+    private int latency = 0, messagesToReceive = 1;
 
     private PeerService peerService;
 
@@ -51,12 +51,16 @@ public class PeerConnection extends Thread{
         return latency;
     }
 
+    public void SetMessagesToReceive(int value) {
+        messagesToReceive = value;
+    }
+
     //read in data, length sent first
     public void run() {
 
         System.out.println("Starting client thread");
-        byte[] bytes = new byte[32];
-        int messagesToReceive = 2, currentMessages = 0;
+        byte[] bytes = new byte[64];
+        int currentMessages = 0;
 
         try { StartConnection(); }
         catch (IOException e) { e.printStackTrace(); }
@@ -81,12 +85,6 @@ public class PeerConnection extends Thread{
                 //convert to short array
                 short[] sendPacket = new short[bytes.length / 2];
                 ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(sendPacket);
-
-                System.out.println("Received packet: ");
-                for(int i = 0; i < 16; i++){
-                    System.out.printf("%d, ", sendPacket[i]);
-                }
-                System.out.println();
 
                 //logic for received data
                 peerService.ReceivePacket(sendPacket);

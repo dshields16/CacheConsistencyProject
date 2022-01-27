@@ -53,16 +53,10 @@ public class PeerService
         int updatesToSend = 4, currentPacketSize = 0;
         short[] newData;
 
-        if(sequenceNo >= 0) {
-            packetData = new short[MAX_PACKET_SIZE];
-            packetData[0] = sequenceNo;
-            packetData[1] = 0;
-            currentPacketSize = 2;
-        }
-        else {
-            System.out.println("Generating an update with sequence number less than 0");
-            packetData = new short[MAX_PACKET_SIZE];
-        }
+        packetData = new short[MAX_PACKET_SIZE];
+        packetData[0] = sequenceNo;
+        packetData[1] = 0;
+        currentPacketSize = 2;
 
 
         for (int i = 0; i < updatesToSend; i++){
@@ -88,7 +82,7 @@ public class PeerService
             }
             currentPacketSize += 4;
 
-            System.out.printf("New command: %d, %d, %d, %d%n", newData[0], newData[1], newData[2], newData[3]);
+            //System.out.printf("New command: %d, %d, %d, %d%n", newData[0], newData[1], newData[2], newData[3]);
         }
 
         //update packet length
@@ -115,7 +109,7 @@ public class PeerService
 
     //receive update packet
     public void ReceivePacket(short[] packetData) {
-        System.out.printf("Peer %d receiving data of length %d%n", peerId, packetData.length);
+        //System.out.printf("Peer %d receiving data of length %d%n", peerId, packetData.length);
         Utils.PrintShortArray(packetData);
         short sequenceNo = packetData[0], length = packetData[1], startValue = 2;
 
@@ -135,7 +129,18 @@ public class PeerService
     //Use parsed data to complete the sent command i.e. modify some stored data
     boolean CompleteParsedCommand(short peer, short unitId, short var, short value, short sequenceNumber) {
 
+        Unit updatedUnit = unitsList.stream()
+                .filter(unit -> peer == unit.GetOwnerId() && unitId == unit.GetUnitId())
+                .findAny()
+                .orElse(null);
+
+
         if(var == -1) {
+            //unit has already been added
+            if(updatedUnit != null) {
+                return false;
+            }
+
             unitsList.add(new Unit(peer, unitId, sequenceNumber));
             messagePacking.AddUnit(peer, unitId);
             return true;
@@ -143,10 +148,7 @@ public class PeerService
 
         //check sequence value and return if stored value is higher ------------
 
-        Unit updatedUnit = unitsList.stream()
-                .filter(unit -> peer == unit.GetOwnerId() && unitId == unit.GetUnitId())
-                .findAny()
-                .orElse(null);
+
         if(updatedUnit != null) {
 
             if(updatedUnit.GetSeqFromIndex(var) < sequenceNumber) {

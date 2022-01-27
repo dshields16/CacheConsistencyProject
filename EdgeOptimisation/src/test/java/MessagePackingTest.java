@@ -46,6 +46,7 @@ class MessagePackingTest {
          */
 
         short[] expectedResults = new short[] {
+                1, 8,
                 1, 0, -1, 0,
                 2, 0, -1, 0
         };
@@ -83,6 +84,7 @@ class MessagePackingTest {
          */
 
         short[] expectedResults = new short[] {
+                2, 12,
                 1, 0, 0, 10,
                 2, 0, 0, 2,
                 2, 0, 1, 3
