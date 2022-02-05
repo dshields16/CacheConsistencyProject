@@ -67,7 +67,7 @@ public class NodeGeneration {
             neighbour2 = 2;
         }
 
-        for(int i = 2; i < nodes.length; i++) {
+        for(int i = neighbour2+1; i < nodes.length; i++) {
             if(i == currentNode) {
                 continue;
             }
@@ -85,12 +85,19 @@ public class NodeGeneration {
                 }
             }
         }
+
+        //order neighbours so 1 has a lower index
+        if(neighbour2 < neighbour1) {
+            int temp = neighbour1;
+            neighbour1 = neighbour2;
+            neighbour2 = temp;
+        }
     }
 
     //Can the generated position value be placed in the space and respect min distance
     private boolean NodePlacementValid(int x, int y, int placedNodes) {
 
-        for(int i = 0; i < placedNodes; i++) {
+        for(int i = 0; i <= placedNodes; i++) {
 
             if(GetEuclideanDistance(x, nodes[i].GetPositionX(), y, nodes[i].GetPositionY()) < MIN_DIST) {
                 return false;
@@ -127,6 +134,14 @@ public class NodeGeneration {
 
     public int GetNeighbour2() {
         return neighbour2;
+    }
+
+    public int GetNeighbour1Latency() {
+        return nodes[neighbour1].GetLatency();
+    }
+
+    public int GetNeighbour2Latency() {
+        return nodes[neighbour2].GetLatency();
     }
 
 

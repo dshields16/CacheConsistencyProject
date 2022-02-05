@@ -11,20 +11,23 @@ public class PeerConnection extends Thread{
     private InputStream in;
 
     private int latency = 0, messagesToReceive = 1;
+    private short nodeId;
 
-    private PeerService peerService;
+    private NodeUpdateProcessing updateProcessing;
 
     //server make connection with communicating client
-    public PeerConnection(Socket socket, PeerService peerService) {
+    public PeerConnection(Socket socket, NodeUpdateProcessing updateProcessing, short nodeId) {
 
         this.peerSocket = socket;
-        this.peerService = peerService;
+        this.updateProcessing = updateProcessing;
+        this.nodeId = nodeId;
     }
 
     //client start connection with server
-    public PeerConnection(int port, PeerService peerService) throws IOException {
+    public PeerConnection(int port, NodeUpdateProcessing updateProcessing, short nodeId) throws IOException {
         peerSocket = new Socket("localhost", port);
-        this.peerService = peerService;
+        this.updateProcessing = updateProcessing;
+        this.nodeId = nodeId;
     }
 
     public void StartConnection() throws IOException {
@@ -52,6 +55,7 @@ public class PeerConnection extends Thread{
     }
 
     public void SetMessagesToReceive(int value) {
+        System.out.printf("Should receive %d messages%n", value);
         messagesToReceive = value;
     }
 
@@ -59,11 +63,13 @@ public class PeerConnection extends Thread{
     public void run() {
 
         System.out.println("Starting client thread");
-        byte[] bytes = new byte[64];
+        byte[] bytes = new byte[128];
         int currentMessages = 0;
 
         try { StartConnection(); }
         catch (IOException e) { e.printStackTrace(); }
+
+
 
         while(true) {
 
@@ -78,7 +84,7 @@ public class PeerConnection extends Thread{
                     continue;
                 }
 
-                System.out.printf("Received packet at %s%n", LocalTime.now());
+                System.out.printf("Received packet from node %d at %s%n", nodeId, LocalTime.now());
 
                 currentMessages++;
 
@@ -86,8 +92,12 @@ public class PeerConnection extends Thread{
                 short[] sendPacket = new short[bytes.length / 2];
                 ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(sendPacket);
 
+                //Utils.PrintShortArray(sendPacket);
+
                 //logic for received data
-                peerService.ReceivePacket(sendPacket);
+                updateProcessing.ReceivePacket(sendPacket, nodeId);
+
+
 
                 if(currentMessages >= messagesToReceive) {
                     try { Thread.sleep(1000); }
@@ -104,6 +114,8 @@ public class PeerConnection extends Thread{
 
 
         }
+
+
 
 
 

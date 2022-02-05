@@ -11,6 +11,7 @@ import java.time.LocalTime;
 import java.util.*;
 import java.util.List;
 
+/*
 public class ServerClientTesting {
 
     private static final int MESSAGES_SENT = 20;
@@ -362,3 +363,6 @@ public class ServerClientTesting {
         System.out.printf("Average packet size: %.2f bytes%n", avgPacketSize*2);
     }
 }
+
+
+ */

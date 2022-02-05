@@ -13,9 +13,11 @@ class NodeGenerationTest {
     @BeforeAll
     static void Setup() {
         Random r = new Random();
-        seed = r.nextLong();
+        //seed = r.nextLong();
 
-        nodeGen = new NodeGeneration(seed, 5, 0);
+        seed = 100;
+
+        nodeGen = new NodeGeneration(seed, 5, 1);
     }
 
     @Test
@@ -39,11 +41,12 @@ class NodeGenerationTest {
     @Test
     void CalculateNeighboursTest() {
 
-        System.out.printf("Neighbour 1 is: %d with latency %d%n", nodeGen.GetNeighbour1(), nodeGen.GetNodes()[nodeGen.GetNeighbour1()].GetLatency());
-        System.out.printf("Neighbour 2 is: %d with latency %d%n", nodeGen.GetNeighbour2(), nodeGen.GetNodes()[nodeGen.GetNeighbour2()].GetLatency());
+        System.out.printf("Neighbour 1 is: %d with latency %d%n", nodeGen.GetNeighbour1(), nodeGen.GetNeighbour1Latency());
+        System.out.printf("Neighbour 2 is: %d with latency %d%n", nodeGen.GetNeighbour2(), nodeGen.GetNeighbour2Latency());
 
         assertTrue(nodeGen.GetNeighbour1() != -1);
         assertTrue(nodeGen.GetNeighbour2() != -1);
+        assertTrue(nodeGen.GetNeighbour1() < nodeGen.GetNeighbour2());
     }
 
 }

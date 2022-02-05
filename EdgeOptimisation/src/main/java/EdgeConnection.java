@@ -99,7 +99,7 @@ public class EdgeConnection extends Thread{
                     if(bytes[0] == 1) {
                         //start sending data now all clients have connected
                         System.out.println("Server has connected with all clients");
-                        ServerClientTesting.ClientSendData();
+                        //ServerClientTesting.ClientSendData();
                         continue;
                     }
                     else {
