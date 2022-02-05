@@ -72,9 +72,69 @@ public class NodeUpdateProcessing {
 
         System.out.printf("=====Data stored for Peer %d=====%n", nodeId);
 
-        for (PlayerDataObject obj: dataList) {
-            System.out.println(obj.toString());
+        OutputDataList(dataList);
+
+    }
+
+    private void OutputDataList(List<PlayerDataObject> list) {
+
+        String output = "";
+        for (PlayerDataObject obj: list) {
+            output += String.format("%s%n", obj.toString());
+        }
+        System.out.println(output);
+    }
+
+    /*
+        When a player leaves this node, compare the locally stored data for that node with the
+        perfect data to check the consistency of data stored about the node
+     */
+    public void CompareDataStored(List<PlayerDataObject> correctDataList, int otherNodeId) {
+
+        List<PlayerDataObject> copyOfLocalData = new ArrayList<>();
+
+        //make a list of all elements which are stored on the new node
+        for(int i = 0; i < dataList.size(); i++) {
+            if(dataList.get(i).GetCurrentNodeId() == otherNodeId) {
+                copyOfLocalData.add(dataList.get(i));
+            }
         }
 
+        String comparison = String.format("Comparing data stored for node %d%n", otherNodeId);
+
+        copyOfLocalData.sort(Comparator.comparing(PlayerDataObject::GetCurrentNodeId)
+                .thenComparing(PlayerDataObject::GetPlayerId));
+
+        correctDataList.sort(Comparator.comparing(PlayerDataObject::GetCurrentNodeId)
+                .thenComparing(PlayerDataObject::GetPlayerId));
+
+        OutputDataList(correctDataList);
+        OutputDataList(copyOfLocalData);
+
+        //compare this list of data with the perfect list
+        int j = 0;  //index for local data
+        for(int i = 0; i < copyOfLocalData.size(); i++, j++) {
+
+            PlayerDataObject localData = copyOfLocalData.get(j);
+            PlayerDataObject perfectData = correctDataList.get(i);
+
+            //if the player data doesn't match
+            if(localData.GetPlayerId() != perfectData.GetPlayerId()) {
+
+                //extra local data that has not been updated
+                if(localData.GetPlayerId() < perfectData.GetPlayerId()) {
+
+                    i--;
+                    continue;
+                }
+                j--;
+                //comparison += String.format("Missing player with id %d%n", perfectData.GetPlayerId());
+                continue;
+            }
+
+            comparison += perfectData.CompareWithOtherObject(localData);
+        }
+
+        System.out.println(comparison);
     }
 }

@@ -18,7 +18,7 @@ class DataGenerationTest {
 
         long seed = new Random().nextLong();
         nodeGen = new NodeGeneration(seed, 5, 0);
-        dataGen = new DataGeneration(seed, 5, nodeGen);
+        dataGen = new DataGeneration(seed, 5, nodeGen, null);
 
         NodeConsistencyControlMain.SYSTEM_START = new Timestamp(System.currentTimeMillis()).getTime();
 

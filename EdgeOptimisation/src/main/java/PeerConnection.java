@@ -55,7 +55,6 @@ public class PeerConnection extends Thread{
     }
 
     public void SetMessagesToReceive(int value) {
-        System.out.printf("Should receive %d messages%n", value);
         messagesToReceive = value;
     }
 

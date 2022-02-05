@@ -73,7 +73,7 @@ public class NodeConsistencyControlMain {
 
 
         //start sending updates
-        DataGeneration dataGen = new DataGeneration(seed, numNodes, nodeGen);
+        DataGeneration dataGen = new DataGeneration(seed, numNodes, nodeGen, updateProcessing);
 
         Thread thread = new Thread(() -> {
 

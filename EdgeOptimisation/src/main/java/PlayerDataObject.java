@@ -19,6 +19,16 @@ public class PlayerDataObject {
         var5Ts = timestamp;
     }
 
+    public PlayerDataObject(PlayerDataObject obj) {
+
+        this.playerId = obj.GetPlayerId();
+        this.currentNodeId = obj.GetCurrentNodeId();
+
+        for(int i = 0; i < 5; i++) {
+            SetVarFromIndex(i, obj.GetVarFromIndex(i), obj.GetTimestampFromIndex(i));
+        }
+    }
+
     public long GetTimestampFromIndex(int index) {
         switch (index) {
             case 0:
@@ -99,5 +109,20 @@ public class PlayerDataObject {
         return String.format("%d, %d, %d:%d, %d:%d, %d:%d, %d:%d, %d:%d",
                 currentNodeId, playerId,
                 var1, var1Ts, var2, var2Ts, var3, var3Ts, var4, var4Ts, var5, var5Ts);
+    }
+
+    //comparing against local data
+    public String CompareWithOtherObject(PlayerDataObject obj) {
+
+        String difference = "";
+
+        for(int i = 0; i < 5; i++) {
+            if(obj.GetVarFromIndex(i) != GetVarFromIndex(i) &&
+                    obj.GetTimestampFromIndex(i) <= GetTimestampFromIndex(i)) {     //if the local data is more up-to-date then ignore
+                difference += String.format("Var%d is different for Player %d%n", i+1, obj.GetPlayerId());
+            }
+        }
+
+        return difference;
     }
 }
