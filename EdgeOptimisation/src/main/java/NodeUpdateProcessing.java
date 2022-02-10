@@ -1,7 +1,5 @@
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.sql.Timestamp;
+import java.util.*;
 
 public class NodeUpdateProcessing {
 
@@ -9,16 +7,17 @@ public class NodeUpdateProcessing {
     private List<PlayerDataObject> dataList = new ArrayList<>();
 
     private short nodeId;
-
     public NodeUpdateProcessing(short nodeId) {
         this.nodeId = nodeId;
     }
 
+    private static int finalStaleness = 0, totalMoves = 0;
+
     //process a received update packet, isInternal = update generated locally
     public void ReceivePacket(short[] packetData, short senderId) {
         //System.out.printf("Peer %d receiving data of length %d%n", peerId, packetData.length);
-        //if(!isInternal)
-        //    Utils.PrintShortArray(packetData);
+        if(senderId == nodeId)
+            Utils.PrintShortArray(packetData, "Locally generated packet");
         short timestamp = packetData[0], length = packetData[1];
 
         for(int i = 2; i < length; i += 3){
@@ -36,14 +35,20 @@ public class NodeUpdateProcessing {
     }
 
     //Use parsed data to complete the sent command i.e. modify some stored data
-    void CompleteParsedCommand(short playerId, short var, short value, short timestamp, short senderId) {
+    private void CompleteParsedCommand(short playerId, short var, short value, short timestamp, short senderId) {
 
         //System.out.printf("Completing command: player: %d, var: %d, new value: %d, timestamp: %d%n", playerId, var, value, timestamp);
-
-        PlayerDataObject updatedObj = dataList.stream()
-                .filter(obj -> playerId == obj.GetPlayerId())
-                .findAny()
-                .orElse(null);
+        PlayerDataObject updatedObj;
+        try {
+            updatedObj = dataList.stream()
+                    .filter(obj -> playerId == obj.GetPlayerId())
+                    .findAny()
+                    .orElse(null);
+        } catch(ConcurrentModificationException e) {
+            e.printStackTrace();
+            System.out.printf("Error with player index %d%n", playerId);
+            return;
+        }
 
         //new data object
         if(updatedObj == null) {
@@ -100,7 +105,7 @@ public class NodeUpdateProcessing {
             }
         }
 
-        String comparison = String.format("Comparing data stored for node %d%n", otherNodeId);
+        System.out.printf("Comparing data stored for node %d%n", otherNodeId);
 
         copyOfLocalData.sort(Comparator.comparing(PlayerDataObject::GetCurrentNodeId)
                 .thenComparing(PlayerDataObject::GetPlayerId));
@@ -111,9 +116,15 @@ public class NodeUpdateProcessing {
         OutputDataList(correctDataList);
         OutputDataList(copyOfLocalData);
 
+        int totalStaleness = 0;
+
         //compare this list of data with the perfect list
         int j = 0;  //index for local data
         for(int i = 0; i < copyOfLocalData.size(); i++, j++) {
+
+            if(i >= correctDataList.size()) {
+                continue;
+            }
 
             PlayerDataObject localData = copyOfLocalData.get(j);
             PlayerDataObject perfectData = correctDataList.get(i);
@@ -132,9 +143,80 @@ public class NodeUpdateProcessing {
                 continue;
             }
 
-            comparison += perfectData.CompareWithOtherObject(localData);
+            totalStaleness += perfectData.CompareWithOtherObject(localData);
         }
 
-        System.out.println(comparison);
+        //System.out.printf("Total staleness: %d%n", totalStaleness);
+        finalStaleness += totalStaleness;
+        totalMoves++;
+    }
+
+    public void OutputStalenessData() {
+        System.out.printf("Total staleness of data: %d%n", finalStaleness);
+        float avg = finalStaleness/totalMoves;
+        System.out.printf("Average over %d runs is %.2f%n", totalMoves, avg);
+    }
+
+    public byte[] GenerateDelayedUpdate(short timeSinceLastUpdate) {
+
+        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+        long ts = timestamp.getTime();
+
+        long timeSinceStart = ts-NodeConsistencyControlMain.SYSTEM_START;
+        short tenthSeconds = (short) (timeSinceStart / 100);    //how many tenth seconds since system start, max 50 mins
+
+        short[] packetData = new short[512];
+        short currentPacketSize = 2;
+
+        packetData[0] = tenthSeconds;
+
+        short tsSinceLastUpdate = (short) (tenthSeconds-(timeSinceLastUpdate/100)); //add any data more recent than this
+
+        //System.out.printf("Checking for updates since %d%n", tsSinceLastUpdate);
+
+        //loop through stored data, add any changed vars to the packet
+        for(int i = 0; i < dataList.size(); i++) {
+
+            PlayerDataObject obj = dataList.get(i);
+            if(obj.GetCurrentNodeId() != nodeId) {
+                continue;
+            }
+
+            for(int j = 0; j < 5; j++) {
+                if(obj.GetTimestampFromIndex(j) > tsSinceLastUpdate
+                        && !(obj.GetVarFromIndex(j) == 0 && obj.GetTimestampFromIndex(j) == 0)) {
+                    packetData[currentPacketSize++] = obj.GetPlayerId();
+                    packetData[currentPacketSize++] = (short) j;
+                    packetData[currentPacketSize++] = obj.GetVarFromIndex(j);
+                }
+            }
+        }
+
+        packetData[1] = currentPacketSize;
+        short[] finalPacketData = Arrays.copyOfRange(packetData, 0, currentPacketSize);
+        //Utils.PrintShortArray(finalPacketData, "Generated delayed update");
+        byte[] byteData = DataGeneration.ConvertDataToBytes(finalPacketData);
+
+        return byteData;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

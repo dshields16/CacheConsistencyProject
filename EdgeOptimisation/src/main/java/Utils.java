@@ -12,15 +12,15 @@ public class Utils {
         System.out.println("Message: " + message);
     }
 
-    public static void PrintShortArray(short[] shorts) {
+    public static void PrintShortArray(short[] shorts, String message) {
 
-        String message = "";
+        String out = "";
         for(int i = 0; i < shorts.length; i++){
-            message += String.format("%d", shorts[i]);
+            out += String.format("%d", shorts[i]);
             if(i < shorts.length - 1) {
-                message += String.format(", ", shorts[i]);
+                out += String.format(", ", shorts[i]);
             }
         }
-        System.out.println("Message: " + message);
+        System.out.println(message + ": " + out);
     }
 }

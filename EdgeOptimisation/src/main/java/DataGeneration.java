@@ -58,20 +58,22 @@ public class DataGeneration {
                 //one of the stored objects for this node is moving, check stored data for the new node to check consistency
 
                 if(moveNode == 0) {
-                    System.out.printf("==Player %d moving from node %d to %d%n", i, currentNode, nodeGen.GetNeighbour1());
-                    CompareLocalData(nodeGen.GetNeighbour1());
+                    System.out.printf("==Player %d moving from node %d to %d%n", i, currentNode, nodeGen.GetNeighbour1(currentNode));
+                    CompareLocalData(nodeGen.GetNeighbour1(currentNode));
                 }
                 else if(moveNode == 1) {
-                    System.out.printf("==Player %d moving from node %d to %d%n", i, currentNode, nodeGen.GetNeighbour2());
-                    CompareLocalData(nodeGen.GetNeighbour2());
+                    System.out.printf("==Player %d moving from node %d to %d%n", i, currentNode, nodeGen.GetNeighbour2(currentNode));
+                    CompareLocalData(nodeGen.GetNeighbour2(currentNode));
                 }
             }
 
+            //generate neighbour 1 for given node
+
             if(moveNode == 0) {
-                dataObjects[i].SetCurrentNodeId((short) nodeGen.GetNeighbour1());
+                dataObjects[i].SetCurrentNodeId((short) nodeGen.GetNeighbour1(dataObjects[i].GetCurrentNodeId()));
             }
             else if(moveNode == 1) {
-                dataObjects[i].SetCurrentNodeId((short) nodeGen.GetNeighbour2());
+                dataObjects[i].SetCurrentNodeId((short) nodeGen.GetNeighbour2(dataObjects[i].GetCurrentNodeId()));
             }
 
 
@@ -98,7 +100,7 @@ public class DataGeneration {
 
         packetData[1] = currentPacketSize;
         short[] finalPacketData = Arrays.copyOfRange(packetData, 0, currentPacketSize);
-        //Utils.PrintShortArray(finalPacketData);
+        //Utils.PrintShortArray(finalPacketData, "Generated normal update");
         byte[] byteData = ConvertDataToBytes(finalPacketData);
 
         CloneData();
@@ -107,9 +109,9 @@ public class DataGeneration {
 
     }
 
-    private byte[] ConvertDataToBytes(short[] shortArray) {
+    public static byte[] ConvertDataToBytes(short[] shortArray) {
 
-        ByteBuffer buffer = ByteBuffer.allocate(2*shortArray.length + Long.BYTES);
+        ByteBuffer buffer = ByteBuffer.allocate(2*shortArray.length);
         buffer.order(ByteOrder.LITTLE_ENDIAN);
         buffer.asShortBuffer().put(shortArray);
         return buffer.array();

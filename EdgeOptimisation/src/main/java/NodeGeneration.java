@@ -9,7 +9,7 @@ public class NodeGeneration {
     private Random r;
     private Node[] nodes;
 
-    private int neighbour1 = -1, neighbour2 = -1;
+    //private int neighbour1 = -1, neighbour2 = -1;
 
     public NodeGeneration(long seed, int numNodes, int currentNode) {
         r = new Random(seed);
@@ -35,7 +35,7 @@ public class NodeGeneration {
                 y = r.nextInt(areaSize + 1);
             }
 
-            nodes[i] = new Node(x, y);
+            nodes[i] = new Node(x, y, i);
             //System.out.printf("Created a new node %d%n", i);
         }
 
@@ -53,45 +53,52 @@ public class NodeGeneration {
             nodes[i].SetLatency((int)distance);
         }
 
-        //find the closest 2 nodes to set as neighbours
-        if(currentNode > 1) {
-            neighbour1 = 0;
-            neighbour2 = 1;
-        }
-        else if(currentNode == 0) {
-            neighbour1 = 1;
-            neighbour2 = 2;
-        }
-        else {
-            neighbour1 = 0;
-            neighbour2 = 2;
-        }
+        //generate neighbours for each node
+        for(int i = 0; i < nodes.length; i++) {
 
-        for(int i = neighbour2+1; i < nodes.length; i++) {
-            if(i == currentNode) {
-                continue;
+            //find the closest 2 nodes to set as neighbours
+            if(i > 1) {
+                nodes[i].neighbour1 = nodes[0];
+                nodes[i].neighbour2 = nodes[1];
+            }
+            else if(i == 0) {
+                nodes[i].neighbour1 = nodes[1];
+                nodes[i].neighbour2 = nodes[2];
+            }
+            else {
+                nodes[i].neighbour1 = nodes[0];
+                nodes[i].neighbour2 = nodes[2];
             }
 
-            //if the latency value is lower than either currently
-            if(nodes[i].GetLatency() < nodes[neighbour1].GetLatency() ||
-                    nodes[i].GetLatency() < nodes[neighbour2].GetLatency()) {
+            //loop through each other node index
+            for(int j = nodes[i].GetId()+1; j < nodes.length; j++) {
+                if(j == i) {
+                    continue;
+                }
 
-                //if 1 is higher than 2 then replace 1, else replace 2
-                if(nodes[neighbour1].GetLatency() > nodes[neighbour2].GetLatency()) {
-                    neighbour1 = i;
+                //if the latency value is lower than either currently
+                if(nodes[j].GetLatency() < nodes[i].GetLatencyForNeighbour(0) ||
+                        nodes[j].GetLatency() < nodes[i].GetLatencyForNeighbour(1)) {
+
+                    //if 1 is higher than 2 then replace 1, else replace 2
+                    if(nodes[i].GetLatencyForNeighbour(0) > nodes[i].GetLatencyForNeighbour(1)) {
+                        nodes[i].neighbour1 = nodes[j];
+                    }
+                    else {
+                        nodes[i].neighbour2 = nodes[j];
+                    }
                 }
-                else {
-                    neighbour2 = i;
-                }
+            }
+
+            //order neighbours so 1 has a lower index
+            if(nodes[i].neighbour2.GetId() < nodes[i].neighbour1.GetId()) {
+                int temp = nodes[i].neighbour1.GetId();
+                nodes[i].neighbour1 = nodes[i].neighbour2;
+                nodes[i].neighbour2 = nodes[temp];
             }
         }
 
-        //order neighbours so 1 has a lower index
-        if(neighbour2 < neighbour1) {
-            int temp = neighbour1;
-            neighbour1 = neighbour2;
-            neighbour2 = temp;
-        }
+
     }
 
     //Can the generated position value be placed in the space and respect min distance
@@ -128,20 +135,20 @@ public class NodeGeneration {
         }
     }
 
-    public int GetNeighbour1() {
-        return neighbour1;
+    public int GetNeighbour1(int nodeId) {
+        return nodes[nodeId].neighbour1.GetId();
     }
 
-    public int GetNeighbour2() {
-        return neighbour2;
+    public int GetNeighbour2(int nodeId) {
+        return nodes[nodeId].neighbour2.GetId();
     }
 
-    public int GetNeighbour1Latency() {
-        return nodes[neighbour1].GetLatency();
+    public int GetNeighbour1Latency(int nodeId) {
+        return nodes[nodeId].GetLatencyForNeighbour(0);
     }
 
-    public int GetNeighbour2Latency() {
-        return nodes[neighbour2].GetLatency();
+    public int GetNeighbour2Latency(int nodeId) {
+        return nodes[nodeId].GetLatencyForNeighbour(1);
     }
 
 

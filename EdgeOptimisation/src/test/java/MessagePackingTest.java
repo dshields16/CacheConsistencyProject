@@ -37,7 +37,7 @@ class MessagePackingTest {
 
         short[] newPacket = mp.GenerateUpdatePacket(0, units, currentSequence);
 
-        Utils.PrintShortArray(newPacket);
+        Utils.PrintShortArray(newPacket, "Generated new object packet");
 
         /*
                 packet should have updates for:
@@ -75,7 +75,7 @@ class MessagePackingTest {
 
         short[] newPacket = mp.GenerateUpdatePacket(0, units, currentSequence);
 
-        Utils.PrintShortArray(newPacket);
+        Utils.PrintShortArray(newPacket, "Generate update packet");
 
         /*
                 packet should have updates for:

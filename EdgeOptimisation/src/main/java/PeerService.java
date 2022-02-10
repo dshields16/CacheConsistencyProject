@@ -90,7 +90,7 @@ public class PeerService
 
         short[] finalPacketData = Arrays.copyOfRange(packetData, 0, currentPacketSize);
 
-        Utils.PrintShortArray(finalPacketData);
+        Utils.PrintShortArray(finalPacketData, "Old random");
 
         return finalPacketData;
     }
@@ -110,7 +110,7 @@ public class PeerService
     //receive update packet
     public void ReceivePacket(short[] packetData) {
         //System.out.printf("Peer %d receiving data of length %d%n", peerId, packetData.length);
-        Utils.PrintShortArray(packetData);
+        Utils.PrintShortArray(packetData, "Old receive");
         short sequenceNo = packetData[0], length = packetData[1], startValue = 2;
 
         for(int i = 0; i < length; i += 4){

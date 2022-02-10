@@ -8,9 +8,9 @@ import java.util.Random;
 
 public class NodeConsistencyControlMain {
 
-    private static int nodeId = -1, numNodes = 0;
+    private static int nodeId = -1, numNodes = 0, timeBetweenUpdates = 200, currentDelay = 200;
     private static long seed;
-    private static final int BASE_PORT = 6000, MESSAGES_SENT = 5;
+    private static final int BASE_PORT = 6000, MESSAGES_SENT = 15;
     private static boolean useOptimisation = false;
 
     private static ServerSocket serverSocket;   //receive messages on this port
@@ -26,9 +26,11 @@ public class NodeConsistencyControlMain {
             nodeId = Integer.parseInt(args[0]);
             numNodes = Integer.parseInt(args[1]);
             useOptimisation = Boolean.parseBoolean(args[2]);
+            timeBetweenUpdates = Integer.parseInt(args[3]);
+            currentDelay = timeBetweenUpdates;
 
-            if(args.length > 3) {
-                seed= Long.parseLong(args[3]);
+            if(args.length > 4) {
+                seed= Long.parseLong(args[4]);
             }
             else {
                 seed = new Random().nextLong();
@@ -44,7 +46,7 @@ public class NodeConsistencyControlMain {
 
         int portNumber = BASE_PORT + nodeId;
         System.out.printf("Peer Service %d running on port %d%n", nodeId, portNumber);
-        System.out.printf("Neighbours are nodes %d and %d%n", nodeGen.GetNeighbour1(), nodeGen.GetNeighbour2());
+        System.out.printf("Neighbours are nodes %d and %d%n", nodeGen.GetNeighbour1(nodeId), nodeGen.GetNeighbour2(nodeId));
 
         NodeUpdateProcessing updateProcessing = new NodeUpdateProcessing((short) nodeId);
 
@@ -52,20 +54,20 @@ public class NodeConsistencyControlMain {
         serverSocket = new ServerSocket(portNumber);
 
         //establish connection with neighbours
-        if(nodeGen.GetNeighbour1() < nodeId) {
-            node1Connection = ConnectWithPrecedingNodeIndex(nodeGen.GetNeighbour1(), updateProcessing, nodeGen.GetNeighbour1Latency());
+        if(nodeGen.GetNeighbour1(nodeId) < nodeId) {
+            node1Connection = ConnectWithPrecedingNodeIndex(nodeGen.GetNeighbour1(nodeId), updateProcessing, nodeGen.GetNeighbour1Latency(nodeId));
 
-            if(nodeGen.GetNeighbour2() < nodeId) {
-                node2Connection = ConnectWithPrecedingNodeIndex(nodeGen.GetNeighbour2(), updateProcessing, nodeGen.GetNeighbour2Latency());
+            if(nodeGen.GetNeighbour2(nodeId) < nodeId) {
+                node2Connection = ConnectWithPrecedingNodeIndex(nodeGen.GetNeighbour2(nodeId), updateProcessing, nodeGen.GetNeighbour2Latency(nodeId));
             }
             else {
-                node2Connection = ConnectWithSubsequentNodeIndex(nodeGen.GetNeighbour2(), updateProcessing, nodeGen.GetNeighbour2Latency());
+                node2Connection = ConnectWithSubsequentNodeIndex(nodeGen.GetNeighbour2(nodeId), updateProcessing, nodeGen.GetNeighbour2Latency(nodeId));
             }
         }
         else {
             //both neighbours are subsequent
-            node1Connection = ConnectWithSubsequentNodeIndex(nodeGen.GetNeighbour1(), updateProcessing, nodeGen.GetNeighbour1Latency());
-            node2Connection = ConnectWithSubsequentNodeIndex(nodeGen.GetNeighbour2(), updateProcessing, nodeGen.GetNeighbour2Latency());
+            node1Connection = ConnectWithSubsequentNodeIndex(nodeGen.GetNeighbour1(nodeId), updateProcessing, nodeGen.GetNeighbour1Latency(nodeId));
+            node2Connection = ConnectWithSubsequentNodeIndex(nodeGen.GetNeighbour2(nodeId), updateProcessing, nodeGen.GetNeighbour2Latency(nodeId));
         }
 
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
@@ -86,10 +88,20 @@ public class NodeConsistencyControlMain {
 
                 updateProcessing.ReceivePacket(sendPacket, (short) nodeId);
 
-                SendPacketToAllNeighbours(packetData);
-                //add packet stats
-                packetsSent += 2;
-                totalPacketSize += 2 * packetData.length;
+                //generate an update packet based on which values have changed
+                currentDelay -= 200;
+                if(currentDelay <= 0) {
+                    System.out.println("Sending packets");
+                    byte[] updatePacket = updateProcessing.GenerateDelayedUpdate((short) timeBetweenUpdates);
+                    SendPacketToAllNeighbours(updatePacket);
+                    //add packet stats
+                    packetsSent += 2;
+                    totalPacketSize += 2 * updatePacket.length;
+
+                    currentDelay = timeBetweenUpdates;
+                }
+
+
                 try {
                     Thread.sleep(200);
                 } catch (InterruptedException e) {
@@ -109,6 +121,7 @@ public class NodeConsistencyControlMain {
 
         updateProcessing.OutputStoredData();
         OutputOutgoingPacketStats();
+        updateProcessing.OutputStalenessData();
 
         StopServer();
 
@@ -119,7 +132,7 @@ public class NodeConsistencyControlMain {
         PeerConnection newPeer = new PeerConnection(BASE_PORT + nodeId, updateProcessing, (short) nodeId);
         newPeer.SetLatency(latency);
         //newPeer.SetMessagesToReceive((numNodes - 1) * MESSAGES_SENT);
-        newPeer.SetMessagesToReceive(MESSAGES_SENT);
+        newPeer.SetMessagesToReceive((int) Math.floor((200*MESSAGES_SENT)/timeBetweenUpdates));
         newPeer.start();
 
         return newPeer;
@@ -131,7 +144,7 @@ public class NodeConsistencyControlMain {
         PeerConnection newPeer = new PeerConnection(serverSocket.accept(), updateProcessing, (short) nodeId);
         newPeer.SetLatency(latency);
         //newPeer.SetMessagesToReceive((numNodes - 1) * MESSAGES_SENT);
-        newPeer.SetMessagesToReceive(MESSAGES_SENT);
+        newPeer.SetMessagesToReceive((int) Math.floor((200*MESSAGES_SENT)/timeBetweenUpdates));
         newPeer.start();
 
         return newPeer;
@@ -139,7 +152,7 @@ public class NodeConsistencyControlMain {
 
     private static void SendPacketToAllNeighbours(byte[] message) {
 
-        System.out.printf("Sending packets at %s%n", LocalTime.now());
+        //System.out.printf("Sending packets at %s%n", LocalTime.now());
 
         //make a new thread to send packet
         Thread thread = new Thread(() -> {
@@ -191,6 +204,7 @@ public class NodeConsistencyControlMain {
         float avgPacketSize = totalPacketSize / packetsSent;
 
         System.out.printf("Packets sent: %d%n", packetsSent);
+        System.out.printf("Total bytes sent: %d%n", totalPacketSize);
         System.out.printf("Average packet size: %.2f bytes%n", avgPacketSize);
     }
 }

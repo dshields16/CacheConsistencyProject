@@ -62,7 +62,7 @@ public class PeerConnection extends Thread{
     public void run() {
 
         System.out.println("Starting client thread");
-        byte[] bytes = new byte[128];
+        byte[] bytes = new byte[256];
         int currentMessages = 0;
 
         try { StartConnection(); }
@@ -83,7 +83,7 @@ public class PeerConnection extends Thread{
                     continue;
                 }
 
-                System.out.printf("Received packet from node %d at %s%n", nodeId, LocalTime.now());
+                //System.out.printf("Received packet from node %d at %s%n", nodeId, LocalTime.now());
 
                 currentMessages++;
 

@@ -1,11 +1,14 @@
 public class Node {
 
-    private int posX, posY, latency;    //latency measured from the current node
+    private int posX, posY, latency, id;    //latency measured from the current node
 
-    public Node(int x, int y) {
+    public Node neighbour1, neighbour2;
+
+    public Node(int x, int y, int id) {
 
         posX = x;
         posY = y;
+        this.id = id;
     }
 
     public int GetPositionX() {
@@ -26,5 +29,17 @@ public class Node {
 
     public String toString() {
         return String.format("Node at position %d, %d", posX, posY);
+    }
+
+    public int GetId() {
+        return id;
+    }
+
+    public int GetLatencyForNeighbour(int index) {
+        if(index == 0) {
+            return neighbour1.GetLatency();
+        } else {
+            return neighbour2.GetLatency();
+        }
     }
 }

@@ -41,12 +41,12 @@ class NodeGenerationTest {
     @Test
     void CalculateNeighboursTest() {
 
-        System.out.printf("Neighbour 1 is: %d with latency %d%n", nodeGen.GetNeighbour1(), nodeGen.GetNeighbour1Latency());
-        System.out.printf("Neighbour 2 is: %d with latency %d%n", nodeGen.GetNeighbour2(), nodeGen.GetNeighbour2Latency());
+        System.out.printf("Neighbour 1 is: %d with latency %d%n", nodeGen.GetNeighbour1(1), nodeGen.GetNeighbour1Latency(1));
+        System.out.printf("Neighbour 2 is: %d with latency %d%n", nodeGen.GetNeighbour2(1), nodeGen.GetNeighbour2Latency(1));
 
-        assertTrue(nodeGen.GetNeighbour1() != -1);
-        assertTrue(nodeGen.GetNeighbour2() != -1);
-        assertTrue(nodeGen.GetNeighbour1() < nodeGen.GetNeighbour2());
+        assertTrue(nodeGen.GetNeighbour1(1) != -1);
+        assertTrue(nodeGen.GetNeighbour2(1) != -1);
+        assertTrue(nodeGen.GetNeighbour1(1) < nodeGen.GetNeighbour2(1));
     }
 
 }

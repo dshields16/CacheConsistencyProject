@@ -112,17 +112,18 @@ public class PlayerDataObject {
     }
 
     //comparing against local data
-    public String CompareWithOtherObject(PlayerDataObject obj) {
+    public int CompareWithOtherObject(PlayerDataObject obj) {
 
-        String difference = "";
+        int totalStaleness = 0;
 
         for(int i = 0; i < 5; i++) {
             if(obj.GetVarFromIndex(i) != GetVarFromIndex(i) &&
-                    obj.GetTimestampFromIndex(i) <= GetTimestampFromIndex(i)) {     //if the local data is more up-to-date then ignore
-                difference += String.format("Var%d is different for Player %d%n", i+1, obj.GetPlayerId());
+                    obj.GetTimestampFromIndex(i) <= GetTimestampFromIndex(i)) {     //if the local data is more up-to-date, then ignore
+                System.out.printf("Var%d is different for Player %d%n", i+1, obj.GetPlayerId());
+                totalStaleness += GetTimestampFromIndex(i) - obj.GetTimestampFromIndex(i);  //perfect - local staleness
             }
         }
 
-        return difference;
+        return totalStaleness;
     }
 }
