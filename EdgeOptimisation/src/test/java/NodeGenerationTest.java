@@ -17,7 +17,7 @@ class NodeGenerationTest {
 
         seed = 100;
 
-        nodeGen = new NodeGeneration(seed, 5, 1);
+        nodeGen = new NodeGeneration(seed, 3, 0);
     }
 
     @Test
@@ -25,7 +25,7 @@ class NodeGenerationTest {
 
         nodeGen.PrintNodeData();
 
-        assertTrue(nodeGen.GetNodes().length == 5);
+        assertTrue(nodeGen.GetNodes().length == 3);
     }
 
     @Test
@@ -41,12 +41,12 @@ class NodeGenerationTest {
     @Test
     void CalculateNeighboursTest() {
 
-        System.out.printf("Neighbour 1 is: %d with latency %d%n", nodeGen.GetNeighbour1(1), nodeGen.GetNeighbour1Latency(1));
-        System.out.printf("Neighbour 2 is: %d with latency %d%n", nodeGen.GetNeighbour2(1), nodeGen.GetNeighbour2Latency(1));
+        System.out.printf("Neighbour 1 is: %d with latency %d%n", nodeGen.GetNeighbour1(0), nodeGen.GetNeighbour1Latency(0));
+        System.out.printf("Neighbour 2 is: %d with latency %d%n", nodeGen.GetNeighbour2(0), nodeGen.GetNeighbour2Latency(0));
 
-        assertTrue(nodeGen.GetNeighbour1(1) != -1);
-        assertTrue(nodeGen.GetNeighbour2(1) != -1);
-        assertTrue(nodeGen.GetNeighbour1(1) < nodeGen.GetNeighbour2(1));
+        assertTrue(nodeGen.GetNeighbour1(0) != -1 && nodeGen.GetNeighbour1(0) != 0);
+        assertTrue(nodeGen.GetNeighbour2(0) != -1 && nodeGen.GetNeighbour2(0) != 0);
+        assertTrue(nodeGen.GetNeighbour1(0) < nodeGen.GetNeighbour2(0));
     }
 
 }

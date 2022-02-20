@@ -52,7 +52,7 @@ public class DataGeneration {
         for(int i = 0; i < dataObjects.length; i++) {
 
             //chance to move the object to a neighbouring object
-            int moveNode = r.nextInt(20);
+            int moveNode = r.nextInt(20)-1;
 
             if((moveNode == 0 || moveNode == 1) && dataObjects[i].GetCurrentNodeId() == currentNode) {
                 //one of the stored objects for this node is moving, check stored data for the new node to check consistency
@@ -93,6 +93,7 @@ public class DataGeneration {
                     packetData[currentPacketSize++] = (short) varToUpdate;
                     packetData[currentPacketSize++] = (short) newValue;
                 }
+
             }
 
 

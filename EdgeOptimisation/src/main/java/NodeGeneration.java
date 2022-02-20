@@ -71,7 +71,7 @@ public class NodeGeneration {
             }
 
             //loop through each other node index
-            for(int j = nodes[i].GetId()+1; j < nodes.length; j++) {
+            for(int j = nodes[i].neighbour2.GetId() + 1; j < nodes.length; j++) {
                 if(j == i) {
                     continue;
                 }

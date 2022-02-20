@@ -92,7 +92,7 @@ public class NodeConsistencyControlMain {
                 currentDelay -= 200;
                 if(currentDelay <= 0) {
                     System.out.println("Sending packets");
-                    byte[] updatePacket = updateProcessing.GenerateDelayedUpdate((short) timeBetweenUpdates);
+                    byte[] updatePacket = updateProcessing.GenerateDelayedUpdate((short) timeBetweenUpdates, useOptimisation);
                     SendPacketToAllNeighbours(updatePacket);
                     //add packet stats
                     packetsSent += 2;
@@ -122,6 +122,7 @@ public class NodeConsistencyControlMain {
         updateProcessing.OutputStoredData();
         OutputOutgoingPacketStats();
         updateProcessing.OutputStalenessData();
+        updateProcessing.OutputCacheRatioData();
 
         StopServer();
 
@@ -178,7 +179,8 @@ public class NodeConsistencyControlMain {
             try { Thread.sleep(lowerNode.GetLatency() - baseLatency); }
             catch (InterruptedException e) { e.printStackTrace(); }
 
-            try { node1Connection.SendMessage(message); }
+            System.out.printf("Sending packet to node %d%n", lowerNode.GetNodeId());
+            try { lowerNode.SendMessage(message); }
             catch (IOException e) { e.printStackTrace();}
 
             //System.out.printf("Second node latency: %d, First node latency: %d, sleep time: %d%n", higherNode.GetLatency(), lowerNode.GetLatency(), higherNode.GetLatency() - lowerNode.GetLatency());
@@ -187,7 +189,8 @@ public class NodeConsistencyControlMain {
             try { Thread.sleep(higherNode.GetLatency() - lowerNode.GetLatency()); }
             catch (InterruptedException e) { e.printStackTrace(); }
 
-            try { node2Connection.SendMessage(message); }
+            System.out.printf("Sending packet to node %d%n", higherNode.GetNodeId());
+            try { higherNode.SendMessage(message); }
             catch (IOException e) { e.printStackTrace();}
 
         });

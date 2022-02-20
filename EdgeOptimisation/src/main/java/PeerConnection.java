@@ -54,6 +54,8 @@ public class PeerConnection extends Thread{
         return latency;
     }
 
+    public short GetNodeId() { return nodeId; }
+
     public void SetMessagesToReceive(int value) {
         messagesToReceive = value;
     }

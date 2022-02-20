@@ -120,7 +120,11 @@ public class PlayerDataObject {
             if(obj.GetVarFromIndex(i) != GetVarFromIndex(i) &&
                     obj.GetTimestampFromIndex(i) <= GetTimestampFromIndex(i)) {     //if the local data is more up-to-date, then ignore
                 System.out.printf("Var%d is different for Player %d%n", i+1, obj.GetPlayerId());
+                NodeUpdateProcessing.AddCacheMiss();
                 totalStaleness += GetTimestampFromIndex(i) - obj.GetTimestampFromIndex(i);  //perfect - local staleness
+            }
+            else {
+                NodeUpdateProcessing.AddCacheHit();
             }
         }
 
