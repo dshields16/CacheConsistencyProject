@@ -15,8 +15,11 @@ public class DataGeneration {
 
     private NodeUpdateProcessing nodeUpdateProcessing;
 
+    List<Integer> varsUpdated = new ArrayList<>();
+
     public DataGeneration(long seed, int numNodes, NodeGeneration nodeGen, NodeUpdateProcessing updating) {
         r = new Random(seed);
+        ZipfLaw.CalculateDenominator(5);
         dataObjects = new PlayerDataObject[numNodes*5];
         clonedData = new PlayerDataObject[numNodes*5];
         this.nodeUpdateProcessing = updating;
@@ -76,13 +79,26 @@ public class DataGeneration {
                 dataObjects[i].SetCurrentNodeId((short) nodeGen.GetNeighbour2(dataObjects[i].GetCurrentNodeId()));
             }
 
+            //generate number of updates using Poisson
 
+            //int numUpdates = 1 + r.nextInt(3);
+            int numUpdates = PoissonProcess.GetPoissonRandom(2, r);
+            if(numUpdates > 5) {
+                numUpdates = 5;
+            }
 
-            int numUpdates = 1 + r.nextInt(3);
+            //prevent duplicate vars
+            varsUpdated.clear();
 
             for (int j = 0; j < numUpdates; j++) {
-                int varToUpdate = r.nextInt(5);
+                //int varToUpdate = r.nextInt(5);
+                int varToUpdate = ZipfVarToUpdate();
                 int newValue = r.nextInt(100);
+
+                if(varsUpdated.contains(varToUpdate))
+                    continue;
+                else
+                    varsUpdated.add(varToUpdate);
 
                 dataObjects[i].SetVarFromIndex(varToUpdate, (short) newValue, tenthSeconds);
 
@@ -101,13 +117,29 @@ public class DataGeneration {
 
         packetData[1] = currentPacketSize;
         short[] finalPacketData = Arrays.copyOfRange(packetData, 0, currentPacketSize);
+
         //Utils.PrintShortArray(finalPacketData, "Generated normal update");
+
         byte[] byteData = ConvertDataToBytes(finalPacketData);
 
         CloneData();
 
         return byteData;
 
+    }
+
+    private int ZipfVarToUpdate() {
+        double rand = r.nextDouble();
+        double probSum = 0;
+
+        for(int i = 1; i <= 5; i++) {
+            probSum += ZipfLaw.GetZipfFrequency(i);
+            if(probSum > rand) {
+                return i-1;
+            }
+        }
+
+        return 4;
     }
 
     public static byte[] ConvertDataToBytes(short[] shortArray) {

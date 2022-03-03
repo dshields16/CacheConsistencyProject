@@ -7,7 +7,7 @@ public class NodeUpdateProcessing {
     //list of data stored
     private List<PlayerDataObject> dataList = new ArrayList<>();
 
-    //store a map of ttl values
+    //store a map of player id to ttl values
     private HashMap<Integer, PlayerDataFrequency> ttlData = new HashMap<>();
 
     private short nodeId;
@@ -25,6 +25,8 @@ public class NodeUpdateProcessing {
         System.out.printf("Peer %d receiving data of length %d from node %d%n", nodeId, packetData.length, senderId);
         if(senderId == nodeId)
             Utils.PrintShortArray(packetData, "Locally generated packet");
+        //else
+        //    Utils.PrintShortArray(packetData, String.format("Remotely generated packet from peer %d", senderId));
         short timestamp = packetData[0], length = packetData[1];
 
         for(int i = 2; i < length; i += 3){
@@ -38,11 +40,6 @@ public class NodeUpdateProcessing {
             }
 
             CompleteParsedCommand(playerId, varToUpdate, newValue, timestamp, senderId);
-        }
-
-        //progress updates made
-        for (PlayerDataFrequency ttl : ttlData.values()) {
-            ttl.ProgressFrequency();
         }
     }
 
@@ -73,7 +70,7 @@ public class NodeUpdateProcessing {
         if(senderId == nodeId) {
 
             //server received data from client and doesnt have a ttl already
-            if(!ttlData.containsKey(playerId))  {
+            if(!ttlData.containsKey((int)playerId))  {
                 ttlData.put((int) playerId, new PlayerDataFrequency(200));
             }
 
@@ -188,7 +185,7 @@ public class NodeUpdateProcessing {
         System.out.printf("Average over %d runs is %.2f%n", totalMoves, avg);
     }
 
-    public byte[] GenerateDelayedUpdate(short timeSinceLastUpdate, boolean useTTL) {
+    public byte[] GenerateDelayedUpdate(short timeSinceLastUpdate, boolean useTTL, int recipient, int otherNeighbour) {
 
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
         long ts = timestamp.getTime();
@@ -203,10 +200,13 @@ public class NodeUpdateProcessing {
 
         short tsSinceLastUpdate = (short) (tenthSeconds-(timeSinceLastUpdate/100)); //add any data more recent than this
 
-        //System.out.printf("Checking for updates since %d%n", tsSinceLastUpdate);
+        //optimise by popularity of neighbours
+        double ttlSkew = 1;
+        if(GetNodePopularity(recipient) < 2*GetNodePopularity(otherNeighbour)) {
+            System.out.printf("Node %d less popular%n", recipient);
+            ttlSkew = 2;
+        }
 
-        //System.out.printf("Output data list of size %d%n", dataList.size());
-        //OutputDataList(dataList);
 
         //loop through stored data, add any changed vars to the packet
         for(int i = 0; i < dataList.size(); i++) {
@@ -222,7 +222,7 @@ public class NodeUpdateProcessing {
                 long tsObjectUpdated = obj.GetTimestampFromIndex(j);
 
                 if(useTTL) {
-                    valueNeedsUpdated = tsObjectUpdated > tsSinceLastUpdate + GetTTLValueForVar(obj.GetPlayerId(), j);
+                    valueNeedsUpdated = tsObjectUpdated > tsSinceLastUpdate + (ttlSkew * GetTTLValueForVar(obj.GetPlayerId(), j));
                 } else {
                     valueNeedsUpdated = tsObjectUpdated > tsSinceLastUpdate;
                 }
@@ -241,7 +241,7 @@ public class NodeUpdateProcessing {
 
         packetData[1] = currentPacketSize;
         short[] finalPacketData = Arrays.copyOfRange(packetData, 0, currentPacketSize);
-        //Utils.PrintShortArray(finalPacketData, "Generated delayed update");
+        Utils.PrintShortArray(finalPacketData, "Generated delayed update");
         byte[] byteData = DataGeneration.ConvertDataToBytes(finalPacketData);
 
         return byteData;
@@ -273,6 +273,23 @@ public class NodeUpdateProcessing {
 
     public void OutputCacheRatioData() {
         System.out.printf("Cache hit rate: %.2f%n", (float)cacheHits/(cacheHits+cacheMisses));
+    }
+
+    /*
+        More popular nodes should have data sent at a lower TTL
+     */
+    public double GetNodePopularity(int nodeId) {
+
+        double sum = 0;
+
+        for(PlayerDataObject obj : dataList) {
+
+            if(obj.GetCurrentNodeId() == nodeId) {
+                sum++;
+            }
+        }
+
+        return sum / dataList.size();
     }
 }
 

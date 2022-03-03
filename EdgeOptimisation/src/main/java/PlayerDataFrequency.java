@@ -27,10 +27,7 @@ public class PlayerDataFrequency {
                 var5Total++;
                 break;
         }
-    }
 
-    //Update the frequency values after a round of updates are finished
-    public void ProgressFrequency() {
         updatesMade++;
     }
 
@@ -43,9 +40,9 @@ public class PlayerDataFrequency {
 
     private int GetTimeFromFrequency(float freq)
     {
-        if(freq >= 0.8)
+        if(freq >= 0.4)
             return 2*timeBetweenUpdates;
-        else if(freq >= 0.35)
+        else if(freq >= 0.1)
             return timeBetweenUpdates;
 
         return 0;
