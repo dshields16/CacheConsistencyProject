@@ -4,40 +4,30 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.time.LocalTime;
 
-public class EdgeConnection extends Thread{
-
-    public static final int BASE_PORT = 6000;
+public class NodeConnection extends Thread{
 
     private Socket peerSocket;
     private OutputStream out;
     private InputStream in;
 
-    private int latency = 0, messagesToReceive = 1, connectedClientId = -1;
+    private int latency = 0, messagesToReceive = 1;
+    private short nodeId;
 
-    private PeerService peerService;
-
-    private boolean isServer = false;
+    private NodeUpdateProcessing updateProcessing;
 
     //server make connection with communicating client
-    public EdgeConnection(Socket socket, PeerService peerService, int clientId) {
-        connectedClientId = clientId;
+    public NodeConnection(Socket socket, NodeUpdateProcessing updateProcessing, short nodeId) {
+
         this.peerSocket = socket;
-        this.peerService = peerService;
+        this.updateProcessing = updateProcessing;
+        this.nodeId = nodeId;
     }
 
     //client start connection with server
-    public EdgeConnection(int clientId, PeerService peerService) throws IOException {
-        connectedClientId = clientId;
-        peerSocket = new Socket("localhost", connectedClientId + BASE_PORT);
-        this.peerService = peerService;
-    }
-
-    public void SetIsServer() {
-        isServer = true;
-    }
-
-    public void SetMessagesToReceive(int value) {
-        messagesToReceive = value;
+    public NodeConnection(int port, NodeUpdateProcessing updateProcessing, short nodeId) throws IOException {
+        peerSocket = new Socket("localhost", port);
+        this.updateProcessing = updateProcessing;
+        this.nodeId = nodeId;
     }
 
     public void StartConnection() throws IOException {
@@ -64,19 +54,23 @@ public class EdgeConnection extends Thread{
         return latency;
     }
 
-    public int GetConnectedClientId() {
-        return connectedClientId;
+    public short GetNodeId() { return nodeId; }
+
+    public void SetMessagesToReceive(int value) {
+        messagesToReceive = value;
     }
 
     //read in data, length sent first
     public void run() {
 
         System.out.println("Starting client thread");
-        byte[] bytes = new byte[64];
+        byte[] bytes = new byte[256];
         int currentMessages = 0;
 
         try { StartConnection(); }
         catch (IOException e) { e.printStackTrace(); }
+
+
 
         while(true) {
 
@@ -86,27 +80,12 @@ public class EdgeConnection extends Thread{
 
                 //a blank response is sent from recipient, ignore if so
                 if(CheckMessageBlank(bytes)){
+                    //if(currentMessages >= messagesToReceive)
+                    //    break;
                     continue;
                 }
 
-                System.out.printf("Received packet from peer %d at %s%n", connectedClientId, LocalTime.now());
-                //Utils.PrintByteArray(bytes);
-
-                //if this is the first message received as a client, server has connected to all clients
-                if(!isServer && currentMessages == 0) {
-
-                    currentMessages++;
-                    if(bytes[0] == 1) {
-                        //start sending data now all clients have connected
-                        System.out.println("Server has connected with all clients");
-                        //ServerClientTesting.ClientSendData();
-                        continue;
-                    }
-                    else {
-                        break;
-                    }
-
-                }
+                //System.out.printf("Received packet from node %d at %s%n", nodeId, LocalTime.now());
 
                 currentMessages++;
 
@@ -114,8 +93,12 @@ public class EdgeConnection extends Thread{
                 short[] sendPacket = new short[bytes.length / 2];
                 ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(sendPacket);
 
+                //Utils.PrintShortArray(sendPacket);
+
                 //logic for received data
-                peerService.ReceivePacket(sendPacket);
+                updateProcessing.ReceivePacket(sendPacket, nodeId);
+
+
 
                 if(currentMessages >= messagesToReceive) {
                     try { Thread.sleep(1000); }
@@ -132,6 +115,8 @@ public class EdgeConnection extends Thread{
 
 
         }
+
+
 
 
 

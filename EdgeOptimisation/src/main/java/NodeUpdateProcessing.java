@@ -1,3 +1,4 @@
+import javax.swing.*;
 import javax.xml.crypto.Data;
 import java.sql.Timestamp;
 import java.util.*;
@@ -22,18 +23,13 @@ public class NodeUpdateProcessing {
 
     //process a received update packet, isInternal = update generated locally
     public void ReceivePacket(short[] packetData, short senderId) {
-        System.out.printf("Peer %d receiving data of length %d from node %d%n", nodeId, packetData.length, senderId);
-        if(senderId == nodeId)
-            Utils.PrintShortArray(packetData, "Locally generated packet");
-        //else
-        //    Utils.PrintShortArray(packetData, String.format("Remotely generated packet from peer %d", senderId));
+
         short timestamp = packetData[0], length = packetData[1];
 
         for(int i = 2; i < length; i += 3){
-            int currentIndex = i;
-            short playerId = packetData[currentIndex];
-            short varToUpdate = packetData[currentIndex+1];
-            short newValue = packetData[currentIndex+2];
+            short playerId = packetData[i];
+            short varToUpdate = packetData[i+1];
+            short newValue = packetData[i+2];
 
             if(playerId == 0 && varToUpdate == 0 && newValue == 0) {
                 break;
@@ -69,19 +65,15 @@ public class NodeUpdateProcessing {
 
         if(senderId == nodeId) {
 
-            //server received data from client and doesnt have a ttl already
+            //server received data from client and doesn't have a ttl already
             if(!ttlData.containsKey((int)playerId))  {
                 ttlData.put((int) playerId, new PlayerDataFrequency(200));
             }
 
             //check ownership and update if necessary (moved to this server)
             if(updatedObj.GetCurrentNodeId() != nodeId) {
-                System.out.printf("Node %d moved to this node%n", playerId);
+                System.out.printf("Player %d moved to this node%n", playerId);
                 updatedObj.SetCurrentNodeId(nodeId);
-
-                //reset ttl values
-                ttlData.remove(playerId);
-                ttlData.put((int) playerId, new PlayerDataFrequency(200));
             }
 
             PlayerDataFrequency ttl = ttlData.get((int)playerId);
@@ -185,13 +177,14 @@ public class NodeUpdateProcessing {
         System.out.printf("Average over %d runs is %.2f%n", totalMoves, avg);
     }
 
-    public byte[] GenerateDelayedUpdate(short timeSinceLastUpdate, boolean useTTL, int recipient, int otherNeighbour) {
+    public byte[] GenerateDelayedUpdate(short timeSinceLastUpdate, boolean useTTL, int recipient) {
 
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
         long ts = timestamp.getTime();
 
         long timeSinceStart = ts-NodeConsistencyControlMain.SYSTEM_START;
         short tenthSeconds = (short) (timeSinceStart / 100);    //how many tenth seconds since system start, max 50 mins
+        tenthSeconds = (short) (Math.round(tenthSeconds / 2) * 2);
 
         short[] packetData = new short[512];
         short currentPacketSize = 2;
@@ -202,10 +195,13 @@ public class NodeUpdateProcessing {
 
         //optimise by popularity of neighbours
         double ttlSkew = 1;
-        if(GetNodePopularity(recipient) < 2*GetNodePopularity(otherNeighbour)) {
-            System.out.printf("Node %d less popular%n", recipient);
-            ttlSkew = 2;
+        if(dataList.size() > 0) {
+            if(3*GetNodePopularity(recipient) < (5/dataList.size())) {
+                System.out.printf("**********Node %d less popular****************%n", recipient);
+                ttlSkew = 1.5;
+            }
         }
+
 
 
         //loop through stored data, add any changed vars to the packet
@@ -216,19 +212,32 @@ public class NodeUpdateProcessing {
                 continue;
             }
 
-            for(int j = 0; j < 5; j++) {
+            for(int j = 0; j < DataGeneration.numberOfVariables; j++) {
 
-                boolean valueNeedsUpdated;
                 long tsObjectUpdated = obj.GetTimestampFromIndex(j);
+                double ttl = ttlSkew * GetTTLValueForVar(obj.GetPlayerId(), j);
 
-                if(useTTL) {
-                    valueNeedsUpdated = tsObjectUpdated > tsSinceLastUpdate + (ttlSkew * GetTTLValueForVar(obj.GetPlayerId(), j));
-                } else {
-                    valueNeedsUpdated = tsObjectUpdated > tsSinceLastUpdate;
+                boolean valueNeedsUpdated = tsObjectUpdated > tsSinceLastUpdate;
+
+
+                if(useTTL && valueNeedsUpdated) {
+                    //valueNeedsUpdated = tsObjectUpdated > tsSinceLastUpdate + (ttlSkew * GetTTLValueForVar(obj.GetPlayerId(), j));
+
+                    //check time divisible by ttl value, if not then don't update
+                    //System.out.printf("Value for %d is %d%n", j, GetTTLValueForVar(obj.GetPlayerId(), j));
+                    if (tenthSeconds % ttl != 0) {
+
+                        //System.out.printf("Skipping obj %d var %d, ttl %.2f, current time %d%n", i, j, ttl, tenthSeconds);
+
+                        valueNeedsUpdated = false;
+                        ResetUpdateTimeForVar(i, j, tenthSeconds);
+                    }
                 }
 
 
+
                 if(valueNeedsUpdated && !(obj.GetVarFromIndex(j) == 0 && obj.GetTimestampFromIndex(j) == 0)) {
+
                     packetData[currentPacketSize++] = obj.GetPlayerId();
                     packetData[currentPacketSize++] = (short) j;
                     packetData[currentPacketSize++] = obj.GetVarFromIndex(j);
@@ -241,7 +250,7 @@ public class NodeUpdateProcessing {
 
         packetData[1] = currentPacketSize;
         short[] finalPacketData = Arrays.copyOfRange(packetData, 0, currentPacketSize);
-        Utils.PrintShortArray(finalPacketData, "Generated delayed update");
+        //Utils.PrintShortArray(finalPacketData, "Generated delayed update");
         byte[] byteData = DataGeneration.ConvertDataToBytes(finalPacketData);
 
         return byteData;
@@ -261,6 +270,28 @@ public class NodeUpdateProcessing {
             return 0;
         }
         return ttl.GetUpdateFrequencyForVar(var) / 100;   //divide by 100 for tenth seconds
+    }
+
+    public short GetPlayerVar(int playerId, int var) {
+        PlayerDataObject playerObj;
+        try {
+            playerObj = dataList.stream()
+                    .filter(obj -> playerId == obj.GetPlayerId())
+                    .findAny()
+                    .orElse(null);
+        } catch(ConcurrentModificationException e) {
+            e.printStackTrace();
+            System.out.printf("Error with player index %d%n", playerId);
+            return -1;
+        }
+
+        return playerObj.GetVarFromIndex(var);
+    }
+
+    //if the update is being delayed, then reset the update time so it can be picked up later
+    public void ResetUpdateTimeForVar(int objId, int var, long ts) {
+        PlayerDataObject obj = dataList.get(objId);
+        obj.SetVarFromIndex(var, obj.GetVarFromIndex(var), ts+2);
     }
 
     public static void AddCacheHit() {

@@ -1,32 +1,18 @@
 public class PlayerDataFrequency {
 
-    private int var1Total = 0, var2Total = 0, var3Total = 0, var4Total = 0, var5Total = 0, updatesMade = 0;
+    private int[] totals;
+    private int updatesMade = 0;
 
     private int timeBetweenUpdates = 200;
 
     public PlayerDataFrequency(int timeBetweenUpdates) {
         this.timeBetweenUpdates = timeBetweenUpdates;
+        totals = new int[DataGeneration.numberOfVariables];
     }
 
     //Store total updates made
     public void UpdateMade(int varId) {
-        switch(varId) {
-            case 0:
-                var1Total++;
-                break;
-            case 1:
-                var2Total++;
-                break;
-            case 2:
-                var3Total++;
-                break;
-            case 3:
-                var4Total++;
-                break;
-            case 4:
-                var5Total++;
-                break;
-        }
+        totals[varId]++;
 
         updatesMade++;
     }
@@ -40,36 +26,34 @@ public class PlayerDataFrequency {
 
     private int GetTimeFromFrequency(float freq)
     {
-        if(freq >= 0.4)
-            return 2*timeBetweenUpdates;
-        else if(freq >= 0.1)
-            return timeBetweenUpdates;
+        if(updatesMade < 5){
+            return timeBetweenUpdates;  //not enough sample size
+        }
 
-        return 0;
+        if(freq >= 0.4)
+            return 3*timeBetweenUpdates;
+        else if(freq >= 0.1)
+            return 2*timeBetweenUpdates;
+
+        return 1*timeBetweenUpdates;
     }
 
     private float GetFrequencyFromId(int varId) {
-        switch(varId) {
-            case 0:
-                return (float)var1Total / updatesMade;
-            case 1:
-                return (float)var2Total / updatesMade;
-            case 2:
-                return (float)var3Total / updatesMade;
-            case 3:
-                return (float)var4Total / updatesMade;
-            case 4:
-                return (float)var5Total / updatesMade;
-        }
-        return 0;
+
+        return (float)totals[varId] / updatesMade;
     }
 
     public void OutputFrequency(int id) {
 
+        String output = String.format("Player %d with %d Updates: ",
+                id, updatesMade);
 
-        System.out.printf("Player %d with %d Updates: %.2f/%d %.2f/%d %.2f/%d %.2f/%d %.2f/%d%n", id, updatesMade,
-                GetFrequencyFromId(0), var1Total, GetFrequencyFromId(1), var2Total, GetFrequencyFromId(2),
-                var3Total, GetFrequencyFromId(3), var4Total, GetFrequencyFromId(4), var5Total);
+        for(int i = 0; i < DataGeneration.numberOfVariables; i++) {
+
+            output += String.format("%.2f/%d ", GetFrequencyFromId(i), totals[i]);
+        }
+
+        System.out.println(output);
     }
 
 

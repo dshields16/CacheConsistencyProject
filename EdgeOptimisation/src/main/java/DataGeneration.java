@@ -10,6 +10,8 @@ public class DataGeneration {
 
     private Random r;
 
+    public static int numberOfVariables = 10;
+
     private PlayerDataObject[] dataObjects, clonedData;
     private NodeGeneration nodeGen;
 
@@ -19,9 +21,9 @@ public class DataGeneration {
 
     public DataGeneration(long seed, int numNodes, NodeGeneration nodeGen, NodeUpdateProcessing updating) {
         r = new Random(seed);
-        ZipfLaw.CalculateDenominator(5);
-        dataObjects = new PlayerDataObject[numNodes*5];
-        clonedData = new PlayerDataObject[numNodes*5];
+        ZipfLaw.CalculateDenominator(numberOfVariables);
+        dataObjects = new PlayerDataObject[15];
+        clonedData = new PlayerDataObject[15];
         this.nodeUpdateProcessing = updating;
 
         this.nodeGen = nodeGen;
@@ -55,7 +57,7 @@ public class DataGeneration {
         for(int i = 0; i < dataObjects.length; i++) {
 
             //chance to move the object to a neighbouring object
-            int moveNode = r.nextInt(20)-1;
+            int moveNode = r.nextInt(50)-1;
 
             if((moveNode == 0 || moveNode == 1) && dataObjects[i].GetCurrentNodeId() == currentNode) {
                 //one of the stored objects for this node is moving, check stored data for the new node to check consistency
@@ -83,15 +85,14 @@ public class DataGeneration {
 
             //int numUpdates = 1 + r.nextInt(3);
             int numUpdates = PoissonProcess.GetPoissonRandom(2, r);
-            if(numUpdates > 5) {
-                numUpdates = 5;
+            if(numUpdates > numberOfVariables) {
+                numUpdates = numberOfVariables;
             }
 
             //prevent duplicate vars
             varsUpdated.clear();
 
             for (int j = 0; j < numUpdates; j++) {
-                //int varToUpdate = r.nextInt(5);
                 int varToUpdate = ZipfVarToUpdate();
                 int newValue = r.nextInt(100);
 
@@ -132,7 +133,7 @@ public class DataGeneration {
         double rand = r.nextDouble();
         double probSum = 0;
 
-        for(int i = 1; i <= 5; i++) {
+        for(int i = 1; i <= numberOfVariables; i++) {
             probSum += ZipfLaw.GetZipfFrequency(i);
             if(probSum > rand) {
                 return i-1;

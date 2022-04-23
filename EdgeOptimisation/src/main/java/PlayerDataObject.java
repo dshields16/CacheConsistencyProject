@@ -1,22 +1,24 @@
+import javax.xml.crypto.Data;
 import java.sql.Timestamp;
 
 public class PlayerDataObject {
 
-    private short var1 = 0, var2 = 0, var3 = 0, var4 = 0, var5 = 0,
-            playerId = -1, currentNodeId = -1;
-    private long var1Ts, var2Ts, var3Ts, var4Ts, var5Ts;
+    private short[] vars;
+    private short playerId = -1, currentNodeId = -1;
+    private long[] varsTs;
 
     public PlayerDataObject(int playerId, int currentNodeId, short timestamp) {
 
         this.playerId = (short) playerId;
         this.currentNodeId = (short) currentNodeId;
 
+        vars = new short[DataGeneration.numberOfVariables];
+        varsTs = new long[DataGeneration.numberOfVariables];
 
-        var1Ts = timestamp;
-        var2Ts = timestamp;
-        var3Ts = timestamp;
-        var4Ts = timestamp;
-        var5Ts = timestamp;
+        for(int i = 0; i < DataGeneration.numberOfVariables; i++) {
+            varsTs[i] = timestamp;
+        }
+
     }
 
     public PlayerDataObject(PlayerDataObject obj) {
@@ -24,72 +26,28 @@ public class PlayerDataObject {
         this.playerId = obj.GetPlayerId();
         this.currentNodeId = obj.GetCurrentNodeId();
 
-        for(int i = 0; i < 5; i++) {
+        vars = new short[DataGeneration.numberOfVariables];
+        varsTs = new long[DataGeneration.numberOfVariables];
+
+        for(int i = 0; i < DataGeneration.numberOfVariables; i++) {
             SetVarFromIndex(i, obj.GetVarFromIndex(i), obj.GetTimestampFromIndex(i));
         }
     }
 
     public long GetTimestampFromIndex(int index) {
-        switch (index) {
-            case 0:
-                return var1Ts;
-            case 1:
-                return var2Ts;
-            case 2:
-                return var3Ts;
-            case 3:
-                return var4Ts;
-            case 4:
-                return var5Ts;
 
-        }
-
-        return -1;
+        return varsTs[index];
     }
 
     public short GetVarFromIndex(int index) {
-        switch (index) {
-            case 0:
-                return var1;
-            case 1:
-                return var2;
-            case 2:
-                return var3;
-            case 3:
-                return var4;
-            case 4:
-                return var5;
 
-        }
-
-        return -1;
+        return vars[index];
     }
 
     public void SetVarFromIndex(int varIndex, short newValue, long timestamp) {
 
-        switch (varIndex) {
-            case 0:
-                var1 = newValue;
-                var1Ts = timestamp;
-                break;
-            case 1:
-                var2 = newValue;
-                var2Ts = timestamp;
-                break;
-            case 2:
-                var3 = newValue;
-                var3Ts = timestamp;
-                break;
-            case 3:
-                var4 = newValue;
-                var4Ts = timestamp;
-                break;
-            case 4:
-                var5 = newValue;
-                var5Ts = timestamp;
-                break;
-
-        }
+        vars[varIndex] = newValue;
+        varsTs[varIndex] = timestamp;
     }
 
     public short GetPlayerId() {
@@ -106,9 +64,15 @@ public class PlayerDataObject {
 
     public String toString() {
 
-        return String.format("%d, %d, %d:%d, %d:%d, %d:%d, %d:%d, %d:%d",
-                currentNodeId, playerId,
-                var1, var1Ts, var2, var2Ts, var3, var3Ts, var4, var4Ts, var5, var5Ts);
+        String output = String.format("%d, %d, ",
+                currentNodeId, playerId);
+
+        for(int i = 0; i < DataGeneration.numberOfVariables; i++) {
+
+            output += String.format("%d: %d, ", vars[i], varsTs[i]);
+        }
+
+        return output;
     }
 
     //comparing against local data
@@ -116,12 +80,13 @@ public class PlayerDataObject {
 
         int totalStaleness = 0;
 
-        for(int i = 0; i < 5; i++) {
+        for(int i = 0; i < DataGeneration.numberOfVariables; i++) {
             if(obj.GetVarFromIndex(i) != GetVarFromIndex(i) &&
                     obj.GetTimestampFromIndex(i) <= GetTimestampFromIndex(i)) {     //if the local data is more up-to-date, then ignore
                 System.out.printf("Var%d is different for Player %d%n", i+1, obj.GetPlayerId());
                 NodeUpdateProcessing.AddCacheMiss();
                 totalStaleness += GetTimestampFromIndex(i) - obj.GetTimestampFromIndex(i);  //perfect - local staleness
+                System.out.printf("Adding %d staleness%n", GetTimestampFromIndex(i) - obj.GetTimestampFromIndex(i));
             }
             else {
                 NodeUpdateProcessing.AddCacheHit();

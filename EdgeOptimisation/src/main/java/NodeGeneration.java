@@ -9,8 +9,6 @@ public class NodeGeneration {
     private Random r;
     private Node[] nodes;
 
-    //private int neighbour1 = -1, neighbour2 = -1;
-
     public NodeGeneration(long seed, int numNodes, int currentNode) {
         r = new Random(seed);
         nodes = new Node[numNodes];
@@ -53,21 +51,43 @@ public class NodeGeneration {
             nodes[i].SetLatency((int)distance);
         }
 
+        //ensure each node has 2 neighbours
+        int[] neighbourCount = new int[nodes.length];
+
         //generate neighbours for each node
         for(int i = 0; i < nodes.length; i++) {
 
-            //find the closest 2 nodes to set as neighbours
-            if(i > 1) {
-                nodes[i].neighbour1 = nodes[0];
-                nodes[i].neighbour2 = nodes[1];
+            //control incrementing of num neighbours
+            boolean oneStartsNull = nodes[i].neighbour1 == null;
+
+            if(nodes[i].neighbour2 != null){
+                continue;
             }
-            else if(i == 0) {
-                nodes[i].neighbour1 = nodes[1];
-                nodes[i].neighbour2 = nodes[2];
+
+            int startingIndex = 0;
+            if(!oneStartsNull) {
+                startingIndex = nodes[i].neighbour1.GetId() + 1;
             }
-            else {
-                nodes[i].neighbour1 = nodes[0];
-                nodes[i].neighbour2 = nodes[2];
+
+
+            for(int minNodes = 1; minNodes < 3; minNodes++) {
+                for (int j = startingIndex; j < nodes.length; j++) {
+
+                    if (j == i)
+                        continue;
+
+                    if (nodes[i].neighbour1 == null && neighbourCount[j] < minNodes) {
+                        //System.out.printf("%d n1 = node %d has %d neighbours < %d%n", i, j, neighbourCount[j], minNodes);
+                        nodes[i].neighbour1 = nodes[j];
+                        continue;
+                    }
+
+                    if (nodes[i].neighbour2 == null && neighbourCount[j] < minNodes) {
+                        //System.out.printf("%d n2 = node %d has %d neighbours < %d%n", i, j, neighbourCount[j], minNodes);
+                        nodes[i].neighbour2 = nodes[j];
+                        continue;
+                    }
+                }
             }
 
             //loop through each other node index
@@ -77,18 +97,51 @@ public class NodeGeneration {
                 }
 
                 //if the latency value is lower than either currently
-                if(nodes[j].GetLatency() < nodes[i].GetLatencyForNeighbour(0) ||
-                        nodes[j].GetLatency() < nodes[i].GetLatencyForNeighbour(1)) {
+                if(GetDistanceBetweenNodes(nodes[i], nodes[j]) < GetDistanceBetweenNodes(nodes[i], nodes[i].neighbour1) ||
+                        GetDistanceBetweenNodes(nodes[i], nodes[j]) < GetDistanceBetweenNodes(nodes[i], nodes[i].neighbour2)) {
 
                     //if 1 is higher than 2 then replace 1, else replace 2
-                    if(nodes[i].GetLatencyForNeighbour(0) > nodes[i].GetLatencyForNeighbour(1)) {
+                    if(GetDistanceBetweenNodes(nodes[i], nodes[i].neighbour1) > GetDistanceBetweenNodes(nodes[i], nodes[i].neighbour2) ) {
+
+                        if(neighbourCount[j] > neighbourCount[nodes[i].neighbour1.GetId()] || !oneStartsNull){
+                            continue;
+                        }
                         nodes[i].neighbour1 = nodes[j];
                     }
                     else {
+                        if(neighbourCount[j] > neighbourCount[nodes[i].neighbour2.GetId()]){
+                            continue;
+                        }
                         nodes[i].neighbour2 = nodes[j];
                     }
                 }
             }
+
+            //System.out.printf("Node %d n1: %d, n2: %d%n", i, nodes[i].neighbour1.GetId(), nodes[i].neighbour2.GetId());
+
+            //set other neighbours
+            int neighbour1Id = nodes[i].neighbour1.GetId();
+            if(neighbour1Id > i) {
+                if(neighbourCount[neighbour1Id] == 0)
+                    nodes[neighbour1Id].neighbour1 = nodes[i];
+                else
+                    nodes[neighbour1Id].neighbour2 = nodes[i];
+            }
+
+            int neighbour2Id = nodes[i].neighbour2.GetId();
+            if(neighbourCount[neighbour2Id] == 0)
+                nodes[neighbour2Id].neighbour1 = nodes[i];
+            else
+                nodes[neighbour2Id].neighbour2 = nodes[i];
+
+            //increment neighbour numbers
+            if(oneStartsNull) {
+                neighbourCount[i]++;
+                neighbourCount[nodes[i].neighbour1.GetId()]++;
+            }
+
+            neighbourCount[i]++;
+            neighbourCount[nodes[i].neighbour2.GetId()]++;
 
             //order neighbours so 1 has a lower index
             if(nodes[i].neighbour2.GetId() < nodes[i].neighbour1.GetId()) {
@@ -116,6 +169,10 @@ public class NodeGeneration {
 
     private boolean NodePlacementValid(int x, int y) {
         return NodePlacementValid(x, y, nodes.length);
+    }
+
+    public double GetDistanceBetweenNodes(Node n1, Node n2) {
+        return GetEuclideanDistance(n1.GetPositionX(), n1.GetPositionY(), n2.GetPositionX(), n2.GetPositionY());
     }
 
     public static double GetEuclideanDistance(int x1, int y1, int x2, int y2) {

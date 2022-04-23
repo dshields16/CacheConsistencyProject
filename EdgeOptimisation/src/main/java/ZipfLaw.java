@@ -1,7 +1,7 @@
 public class ZipfLaw {
 
     private static double denominator = 0;
-    private static final float s = 1f;
+    private static final float s = 2f;
 
     /*
         Calculate the bottom part of zipf's law equation

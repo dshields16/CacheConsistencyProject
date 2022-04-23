@@ -9,15 +9,14 @@ class NodeGenerationTest {
 
     private static NodeGeneration nodeGen;
     private static long seed;
+    private static int numNodes = 4;
 
     @BeforeAll
     static void Setup() {
         Random r = new Random();
-        //seed = r.nextLong();
+        seed = r.nextLong();
 
-        seed = 100;
-
-        nodeGen = new NodeGeneration(seed, 3, 0);
+        nodeGen = new NodeGeneration(seed, numNodes, 0);
     }
 
     @Test
@@ -25,7 +24,7 @@ class NodeGenerationTest {
 
         nodeGen.PrintNodeData();
 
-        assertTrue(nodeGen.GetNodes().length == 3);
+        assertTrue(nodeGen.GetNodes().length == numNodes);
     }
 
     @Test
@@ -47,6 +46,24 @@ class NodeGenerationTest {
         assertTrue(nodeGen.GetNeighbour1(0) != -1 && nodeGen.GetNeighbour1(0) != 0);
         assertTrue(nodeGen.GetNeighbour2(0) != -1 && nodeGen.GetNeighbour2(0) != 0);
         assertTrue(nodeGen.GetNeighbour1(0) < nodeGen.GetNeighbour2(0));
+    }
+
+    @Test
+    void GenerateNeighboursGreaterThanThree() {
+
+        int[] count = new int[numNodes];
+
+        for(int i = 0; i < numNodes; i++) {
+            System.out.printf("Node %d has neighbours: %d and %d%n", i, nodeGen.GetNeighbour1(i), nodeGen.GetNeighbour2(i));
+
+            count[nodeGen.GetNeighbour1(i)]++;
+            count[nodeGen.GetNeighbour2(i)]++;
+        }
+
+        for(int i = 0; i < numNodes; i++) {
+            assertTrue(count[i] == 2);
+        }
+
     }
 
 }
