@@ -1,13 +1,16 @@
+/*
+    Used to generate randomly generated values with a popularity skew
+    using a Zipf distribution
+ */
 public class ZipfLaw {
 
     private static double denominator = 0;
     private static final float s = 2f;
 
     /*
+        N - number of data elements
+
         Calculate the bottom part of zipf's law equation
-
-        N - number of elements
-
      */
     public static void CalculateDenominator(int N) {
 
@@ -21,10 +24,9 @@ public class ZipfLaw {
     }
 
     /*
-           Calculate Zipf frequency
-
            k - rank of the element
 
+           Calculate Zipf frequency
      */
     public static double GetZipfFrequency(int k) {
 

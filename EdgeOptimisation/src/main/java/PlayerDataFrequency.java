@@ -1,3 +1,6 @@
+/*
+    Store frequency data associated with a player data object
+ */
 public class PlayerDataFrequency {
 
     private int[] totals;
@@ -5,25 +8,43 @@ public class PlayerDataFrequency {
 
     private int timeBetweenUpdates = 200;
 
+    /*
+        timeBetweenUpdates - the interval between data generation
+
+        creates a data frequency object
+     */
     public PlayerDataFrequency(int timeBetweenUpdates) {
         this.timeBetweenUpdates = timeBetweenUpdates;
         totals = new int[DataGeneration.numberOfVariables];
     }
 
-    //Store total updates made
+    /*
+        varId - the id of the var which was updated
+
+        Increment update total for the specified variable
+     */
     public void UpdateMade(int varId) {
         totals[varId]++;
 
         updatesMade++;
     }
 
-    //Vars with a low frequency value should be updated more than values with a high frequency value
+    /*
+        varId - the id of the var to get frequency value
+
+        Returns the base TTL value for the specified variable
+     */
     public int GetUpdateFrequencyForVar(int varId) {
         float freq = GetFrequencyFromId(varId);
 
         return GetTimeFromFrequency(freq);
     }
 
+    /*
+        freq - frequency value of a variable
+
+        Returns an adaptive TTL value using the specified frequency
+     */
     private int GetTimeFromFrequency(float freq)
     {
         if(updatesMade < 5){
@@ -38,11 +59,21 @@ public class PlayerDataFrequency {
         return 1*timeBetweenUpdates;
     }
 
+    /*
+        varId - the variable id to get the frequency value of
+
+        return the frequency value of the specified variable
+     */
     private float GetFrequencyFromId(int varId) {
 
         return (float)totals[varId] / updatesMade;
     }
 
+    /*
+        id - the variable id to print
+
+        Print the frequency details of the specified variable
+     */
     public void OutputFrequency(int id) {
 
         String output = String.format("Player %d with %d Updates: ",

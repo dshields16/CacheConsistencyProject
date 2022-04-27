@@ -8,6 +8,9 @@ import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/*
+    Test the data generation module
+ */
 class DataGenerationTest {
 
     private static DataGeneration dataGen;

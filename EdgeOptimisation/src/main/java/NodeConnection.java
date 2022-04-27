@@ -2,8 +2,11 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.time.LocalTime;
 
+/*
+    Manages the socket connections between each running process
+    Receives and sends byte arrays and sends to the update processing module
+ */
 public class NodeConnection extends Thread{
 
     private Socket peerSocket;
@@ -15,7 +18,13 @@ public class NodeConnection extends Thread{
 
     private NodeUpdateProcessing updateProcessing;
 
-    //server make connection with communicating client
+    /*
+        socket - pre-existing socket connection
+        updateProcessing - update processing module, receives packets
+        nodeId - node id for this process
+
+        server receives connection with another communicating process
+     */
     public NodeConnection(Socket socket, NodeUpdateProcessing updateProcessing, short nodeId) {
 
         this.peerSocket = socket;
@@ -23,23 +32,38 @@ public class NodeConnection extends Thread{
         this.nodeId = nodeId;
     }
 
-    //client start connection with server
+    /*
+        port - number of port the socket is opened on
+        updateProcessing - update processing module, receives packets
+        nodeId - node id for this process
+
+        server opens socket and starts connection with another communicating process
+     */
     public NodeConnection(int port, NodeUpdateProcessing updateProcessing, short nodeId) throws IOException {
         peerSocket = new Socket("localhost", port);
         this.updateProcessing = updateProcessing;
         this.nodeId = nodeId;
     }
 
+    /*
+        Starts the socket connection
+     */
     public void StartConnection() throws IOException {
         in = new DataInputStream(peerSocket.getInputStream());
         out = new DataOutputStream(peerSocket.getOutputStream());
     }
 
+    /*
+        Sends a message through the socket
+     */
     public void SendMessage(byte[] msg) throws IOException {
 
         out.write(msg);
     }
 
+    /*
+        Stop the connection
+     */
     public void StopConnection() throws IOException {
         in.close();
         out.close();
@@ -54,13 +78,22 @@ public class NodeConnection extends Thread{
         return latency;
     }
 
-    public short GetNodeId() { return nodeId; }
+    public short GetNodeId() {
+        return nodeId;
+    }
 
+    /*
+        value - number of messages to receive
+
+        how many messages should be received from the connected socket
+     */
     public void SetMessagesToReceive(int value) {
         messagesToReceive = value;
     }
 
-    //read in data, length sent first
+    /*
+        Start the process communication thread, send and receieve byte array messages
+     */
     public void run() {
 
         System.out.println("Starting client thread");
@@ -70,8 +103,6 @@ public class NodeConnection extends Thread{
         try { StartConnection(); }
         catch (IOException e) { e.printStackTrace(); }
 
-
-
         while(true) {
 
             try {
@@ -80,12 +111,8 @@ public class NodeConnection extends Thread{
 
                 //a blank response is sent from recipient, ignore if so
                 if(CheckMessageBlank(bytes)){
-                    //if(currentMessages >= messagesToReceive)
-                    //    break;
                     continue;
                 }
-
-                //System.out.printf("Received packet from node %d at %s%n", nodeId, LocalTime.now());
 
                 currentMessages++;
 
@@ -93,12 +120,8 @@ public class NodeConnection extends Thread{
                 short[] sendPacket = new short[bytes.length / 2];
                 ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(sendPacket);
 
-                //Utils.PrintShortArray(sendPacket);
-
                 //logic for received data
                 updateProcessing.ReceivePacket(sendPacket, nodeId);
-
-
 
                 if(currentMessages >= messagesToReceive) {
                     try { Thread.sleep(1000); }
@@ -106,24 +129,22 @@ public class NodeConnection extends Thread{
                     break;
                 }
 
-
-
             } catch (IOException e) {
                 e.printStackTrace();
                 break;
             }
 
-
         }
-
-
-
-
 
         try { StopConnection(); }
         catch (IOException e) { e.printStackTrace(); }
     }
 
+    /*
+        array - received byte array message
+
+        return true if a received message is blank
+     */
     private static boolean CheckMessageBlank(byte[] array) {
         for (int i = 0; i < array.length; i++) {
             if (array[i] != 0) {

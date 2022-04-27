@@ -8,12 +8,10 @@ import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/*
+    Test the cache storage integration with update processing
+ */
 public class CacheStorageTest {
-
-    //generate data
-    //read local update
-    //apply to local cache
-
 
     private static DataGeneration dataGen;
     private static NodeGeneration nodeGen;

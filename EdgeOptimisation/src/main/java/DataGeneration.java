@@ -6,6 +6,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
+
+/*
+    Generates data sets for the program
+    Stores a perfect copy of data and sends relevant portion to the update processing module
+ */
 public class DataGeneration {
 
     private Random r;
@@ -19,6 +24,12 @@ public class DataGeneration {
 
     List<Integer> varsUpdated = new ArrayList<>();
 
+    /*
+        seed - random seed used
+        numNodes - number of nodes in the network
+        nodeGen - the NodeGeneration instance to get network info
+        updating - used to compare local cache data to perfect data
+     */
     public DataGeneration(long seed, int numNodes, NodeGeneration nodeGen, NodeUpdateProcessing updating) {
         r = new Random(seed);
         ZipfLaw.CalculateDenominator(numberOfVariables);
@@ -129,6 +140,9 @@ public class DataGeneration {
 
     }
 
+    /*
+        Calculate which value should be updated using the Zipf distribution
+     */
     private int ZipfVarToUpdate() {
         double rand = r.nextDouble();
         double probSum = 0;
@@ -143,6 +157,9 @@ public class DataGeneration {
         return 4;
     }
 
+    /*
+        Convert a array of short values to byte values
+     */
     public static byte[] ConvertDataToBytes(short[] shortArray) {
 
         ByteBuffer buffer = ByteBuffer.allocate(2*shortArray.length);
@@ -151,10 +168,20 @@ public class DataGeneration {
         return buffer.array();
     }
 
+    /*
+        index - index of the data object
+
+        returns the node id of the data object at the specified index
+     */
     public short GetNodeIdAtIndex(int index) {
         return dataObjects[index].GetCurrentNodeId();
     }
 
+    /*
+        newNode - node id of the migrated node
+
+        compares the local cache data for the node with the perfect copy
+     */
     private void CompareLocalData(int newNode) {
 
         List<PlayerDataObject> copyOfData = new ArrayList<>();
@@ -169,7 +196,9 @@ public class DataGeneration {
         nodeUpdateProcessing.CompareDataStored(copyOfData, newNode);
     }
 
-    //Store a copy of data before changes are made to check consistency
+    /*
+        Store a copy of data before changes are made to check consistency
+     */
     private void CloneData() {
 
         for(int i = 0; i < dataObjects.length; i++) {

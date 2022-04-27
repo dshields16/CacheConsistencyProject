@@ -1,10 +1,16 @@
 import java.util.Random;
 
+/*
+    Class used to generate Poisson random values which estimates
+    the amount of traffic arrival during a time frame
+ */
 public class PoissonProcess {
 
     /*
-        Knuth algorithm
+        mean - an average value to distribute around
+        r - a random number generator using a set seed
 
+        Knuth algorithm
         Given a mean, generate a Poisson-distributed variable
      */
     public static int GetPoissonRandom(double mean, Random r) {

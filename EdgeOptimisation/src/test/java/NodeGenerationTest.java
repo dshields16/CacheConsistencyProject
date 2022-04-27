@@ -5,6 +5,9 @@ import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/*
+    Test the node generation module
+ */
 class NodeGenerationTest {
 
     private static NodeGeneration nodeGen;

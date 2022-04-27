@@ -1,3 +1,6 @@
+/*
+    Base class for an edge node
+ */
 public class Node {
 
     private int posX, posY, latency, id;    //latency measured from the current node

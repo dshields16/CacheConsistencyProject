@@ -8,12 +8,10 @@ import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/*
+    Test the update processing module
+ */
 public class DataUpdateProcessingTest {
-
-    //generate some data
-    //read local update
-    //process the generated data into local cache
-    //check packet is equal to generated data
 
     private static DataGeneration dataGen;
     private static NodeGeneration nodeGen;

@@ -3,6 +3,9 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/*
+    Test the Zipf distribution function
+ */
 public class ZipfLawTest {
 
     @BeforeAll

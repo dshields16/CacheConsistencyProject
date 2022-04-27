@@ -1,5 +1,13 @@
+/*
+    Utility class with methods for printing arrays
+ */
 public class Utils {
 
+    /*
+        bytes - array to be printed
+
+        Prints a byte array
+     */
     public static void PrintByteArray(byte[] bytes) {
 
         String message = "";
@@ -12,6 +20,12 @@ public class Utils {
         System.out.println("Message: " + message);
     }
 
+    /*
+        shorts - array to be printed
+        message - message to be printed before the array
+
+        Prints a short array
+     */
     public static void PrintShortArray(short[] shorts, String message) {
 
         String out = "";

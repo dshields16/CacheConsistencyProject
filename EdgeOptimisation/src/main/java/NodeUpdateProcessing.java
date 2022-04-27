@@ -1,8 +1,11 @@
-import javax.swing.*;
-import javax.xml.crypto.Data;
 import java.sql.Timestamp;
 import java.util.*;
 
+/*
+    Receive and process cache update messages into local cache changes
+    Monitor cache updates to use PATA and optimise update generation
+    Track performance of algorithm
+ */
 public class NodeUpdateProcessing {
 
     //list of data stored
@@ -12,6 +15,10 @@ public class NodeUpdateProcessing {
     private HashMap<Integer, PlayerDataFrequency> ttlData = new HashMap<>();
 
     private short nodeId;
+
+    /*
+        nodeId - node id of this process
+     */
     public NodeUpdateProcessing(short nodeId) {
         this.nodeId = nodeId;
     }
@@ -21,7 +28,12 @@ public class NodeUpdateProcessing {
     //measuring cache hits and misses
     private static int cacheHits = 0, cacheMisses = 0;
 
-    //process a received update packet, isInternal = update generated locally
+    /*
+        packetData - received cache update message
+        senderId - the id of the node which sent the packet
+
+        process a received update packet and apply changes to local cache
+     */
     public void ReceivePacket(short[] packetData, short senderId) {
 
         short timestamp = packetData[0], length = packetData[1];
@@ -39,10 +51,17 @@ public class NodeUpdateProcessing {
         }
     }
 
-    //Use parsed data to complete the sent command i.e. modify some stored data
+    /*
+        playerId - id of the player object being updated
+        var - id of the variable being updated
+        value - new value assigned to the variable
+        timestamp - time that the cache update was sent
+        senderId - process which sent the cache update
+
+        Use parsed data to complete the sent command i.e. modify some stored cache data
+     */
     private void CompleteParsedCommand(short playerId, short var, short value, short timestamp, short senderId) {
 
-        //System.out.printf("Completing command: player: %d, var: %d, new value: %d, timestamp: %d%n", playerId, var, value, timestamp);
         PlayerDataObject updatedObj;
         try {
             updatedObj = dataList.stream()
@@ -87,7 +106,9 @@ public class NodeUpdateProcessing {
 
     }
 
-    //Print the final stored data to check correctness
+    /*
+        Print the final stored data to check correctness
+     */
     public void OutputStoredData(){
 
         //sort data first
@@ -100,6 +121,11 @@ public class NodeUpdateProcessing {
 
     }
 
+    /*
+        list - list of player cache data
+
+        Prints the cache data
+     */
     private void OutputDataList(List<PlayerDataObject> list) {
 
         String output = "";
@@ -158,7 +184,6 @@ public class NodeUpdateProcessing {
                     continue;
                 }
                 j--;
-                //comparison += String.format("Missing player with id %d%n", perfectData.GetPlayerId());
                 continue;
             }
 
@@ -166,17 +191,26 @@ public class NodeUpdateProcessing {
 
         }
 
-        //System.out.printf("Total staleness: %d%n", totalStaleness);
         finalStaleness += totalStaleness;
         totalMoves++;
     }
 
+    /*
+        Prints the staleness data gathered during execution
+     */
     public void OutputStalenessData() {
         System.out.printf("Total staleness of data: %d%n", finalStaleness);
         float avg = finalStaleness/totalMoves;
         System.out.printf("Average over %d runs is %.2f%n", totalMoves, avg);
     }
 
+    /*
+        timeSinceLastUpdate - the time elapsed since the previous update generation
+        useTTL - whether or not adaptive TTL optimisation should be used
+        recipient - the node id of the process receiving the update
+
+        Generate a cache update packet for the specified node using the specified optimisation method
+     */
     public byte[] GenerateDelayedUpdate(short timeSinceLastUpdate, boolean useTTL, int recipient) {
 
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
@@ -224,10 +258,7 @@ public class NodeUpdateProcessing {
                     //valueNeedsUpdated = tsObjectUpdated > tsSinceLastUpdate + (ttlSkew * GetTTLValueForVar(obj.GetPlayerId(), j));
 
                     //check time divisible by ttl value, if not then don't update
-                    //System.out.printf("Value for %d is %d%n", j, GetTTLValueForVar(obj.GetPlayerId(), j));
                     if (tenthSeconds % ttl != 0) {
-
-                        //System.out.printf("Skipping obj %d var %d, ttl %.2f, current time %d%n", i, j, ttl, tenthSeconds);
 
                         valueNeedsUpdated = false;
                         ResetUpdateTimeForVar(i, j, tenthSeconds);
@@ -236,6 +267,7 @@ public class NodeUpdateProcessing {
 
 
 
+                //add update to packet
                 if(valueNeedsUpdated && !(obj.GetVarFromIndex(j) == 0 && obj.GetTimestampFromIndex(j) == 0)) {
 
                     packetData[currentPacketSize++] = obj.GetPlayerId();
@@ -245,17 +277,18 @@ public class NodeUpdateProcessing {
             }
         }
 
-        //if(useTTL)
-        //    OutputDataFrequencyValues();
-
         packetData[1] = currentPacketSize;
+
+        //convert to a byte array
         short[] finalPacketData = Arrays.copyOfRange(packetData, 0, currentPacketSize);
-        //Utils.PrintShortArray(finalPacketData, "Generated delayed update");
         byte[] byteData = DataGeneration.ConvertDataToBytes(finalPacketData);
 
         return byteData;
     }
 
+    /*
+        Print the frequency data for each object
+     */
     public void OutputDataFrequencyValues() {
 
         for (Integer key : ttlData.keySet()) {
@@ -263,6 +296,12 @@ public class NodeUpdateProcessing {
         }
     }
 
+    /*
+        playerId - the id of the player object to be searched
+        var - the id of the var to check
+
+        returns the TTL value for the player id and var passed in
+     */
     public int GetTTLValueForVar(int playerId, int var) {
         PlayerDataFrequency ttl = ttlData.get(playerId);
         if(ttl == null) {
@@ -272,6 +311,12 @@ public class NodeUpdateProcessing {
         return ttl.GetUpdateFrequencyForVar(var) / 100;   //divide by 100 for tenth seconds
     }
 
+    /*
+        playerId - the id of the player object to be searched
+        var - the id of the var to check
+
+        returns the variable value for the player id and var passed in
+     */
     public short GetPlayerVar(int playerId, int var) {
         PlayerDataObject playerObj;
         try {
@@ -288,26 +333,43 @@ public class NodeUpdateProcessing {
         return playerObj.GetVarFromIndex(var);
     }
 
-    //if the update is being delayed, then reset the update time so it can be picked up later
+    /*
+        objId - the id of the object
+        var - the id of the var to reset
+        ts - the current time set
+
+        If the update is being delayed, then reset the update time so it can be picked up later
+     */
     public void ResetUpdateTimeForVar(int objId, int var, long ts) {
         PlayerDataObject obj = dataList.get(objId);
         obj.SetVarFromIndex(var, obj.GetVarFromIndex(var), ts+2);
     }
 
+    /*
+        Add a cache hit to the total
+     */
     public static void AddCacheHit() {
         cacheHits++;
     }
 
+    /*
+        Add a cache miss to the total
+     */
     public static void AddCacheMiss() {
         cacheMisses++;
     }
 
+    /*
+        Print the cache hit data
+     */
     public void OutputCacheRatioData() {
         System.out.printf("Cache hit rate: %.2f%n", (float)cacheHits/(cacheHits+cacheMisses));
     }
 
     /*
-        More popular nodes should have data sent at a lower TTL
+        nodeId - the id of the node being checked
+
+        Returns a popularity value for the node, comparing sizes of the data list
      */
     public double GetNodePopularity(int nodeId) {
 
